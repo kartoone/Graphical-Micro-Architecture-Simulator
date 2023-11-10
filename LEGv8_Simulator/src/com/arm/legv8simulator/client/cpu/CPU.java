@@ -77,6 +77,7 @@ public class CPU {
 		Zflag = false;
 		Cflag = false;
 		Vflag = false;
+		memLog.append("OP\t\tADDR(D)\t\tADDR(HEX)\n");
 	}
 	
 	/**
@@ -620,7 +621,9 @@ public class CPU {
 		} else {
 			registerFile[destReg] = memory.loadDoubleword(registerFile[baseAddressReg]+offset);
 			cpuLog.append("LDUR \t X" + destReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
-			memLog.append("LDUR: " + (registerFile[baseAddressReg] + offset) + "\n");
+			Long addr = registerFile[baseAddressReg] + offset;
+			String hex = Long.toHexString(addr);
+			memLog.append("LDUR:\t" + addr + "\t0x" + hex + "\n");
 		}
 	}
 
