@@ -138,6 +138,13 @@ public class CPU {
 	}
 	
 	/**
+	 * @return a string showing full list of memory accesses
+	 */
+	public String getMemLog() {
+		return memLog.toString();
+	}
+
+	/**
 	 * @return a string showing full CPU execution history
 	 */
 	public String getCpuLog() {
@@ -613,6 +620,7 @@ public class CPU {
 		} else {
 			registerFile[destReg] = memory.loadDoubleword(registerFile[baseAddressReg]+offset);
 			cpuLog.append("LDUR \t X" + destReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
+			memLog.append("LDUR: " + (registerFile[baseAddressReg] + offset) + "\n");
 		}
 	}
 
@@ -882,6 +890,7 @@ public class CPU {
 	private boolean branchTaken = false;
 	private boolean STXRSucceed = false;
 	private StringBuilder cpuLog = new StringBuilder("");
+	private StringBuilder memLog = new StringBuilder("");
 	private long[] registerFile;
 	private long taggedAddress;
 	private int instructionIndex;

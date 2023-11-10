@@ -73,7 +73,7 @@ public class WebApp implements EntryPoint {
 							-registerPanel.getOffsetHeight()-BANNER_HEIGHT-VERTICAL_PADDING;	
 				}
 				if (editorHeight > 200) {
-					editor.setHeight(editorHeight + "px");
+					editor.setHeight((editorHeight-350) + "px");
 				} else {
 					editor.setHeight("200px");
 				}
@@ -90,8 +90,10 @@ public class WebApp implements EntryPoint {
 			private void resizeSingleCycleDatapath(double width) {
 				if (width > 1600) {
 					editor.setWidth("675px");
+					memLog.setWidth("675px");
 				} else {
 					editor.setWidth(registerPanel.getOffsetWidth() + "px");
+					memLog.setWidth(registerPanel.getOffsetWidth() + "px");
 				}
 				double datapathWidth = width-editorPanel.getOffsetWidth()-HORIZTONAL_PADDING;
 				datapathPanel.remove(scDatapath.getCanvas());
@@ -128,6 +130,11 @@ public class WebApp implements EntryPoint {
 		cpuLog.setWidth("600px");
 		cpuLog.setHeight("350px");
 		
+		// create memLog
+		memLog = new AceEditor();
+		memLog.setWidth("600px");
+		memLog.setHeight("350px");
+		
 		// build the UI
 		initUIComponents();
 		buildSingleCycleUI();
@@ -146,6 +153,12 @@ public class WebApp implements EntryPoint {
 		cpuLog.setTheme(AceEditorTheme.MONOKAI);
 		cpuLog.setReadOnly(true);
 		cpuLog.setShowGutter(false);
+
+		// start the memLog and set its theme and mode
+		memLog.startEditor();
+		memLog.setTheme(AceEditorTheme.MONOKAI);
+		memLog.setReadOnly(true);
+		memLog.setShowGutter(false);
 		
 		// code from here to end of method is not used but program breaks if it is removed...
 		editor.initializeCommandLine(new AceDefaultCommandLine(commandLine));
@@ -468,7 +481,7 @@ public class WebApp implements EntryPoint {
 		int editorHeight = Window.getClientHeight()-controlPanel.getOffsetHeight()
 				-registerPanel.getOffsetHeight()-BANNER_HEIGHT-VERTICAL_PADDING;
 		if (editorHeight > 200) {
-			editor.setHeight(editorHeight + "px");
+			editor.setHeight((editorHeight-350) + "px");
 		} else {
 			editor.setHeight("200px");
 		}
@@ -656,6 +669,8 @@ public class WebApp implements EntryPoint {
 		editorPanel = new VerticalPanel();
 		editorPanel.setStyleName("editorPanel");
 		editorPanel.add(editor);
+		editorPanel.add(new Label("Memory Access Log"));
+		editorPanel.add(memLog);
 	}
 	
 	// initialises the debug panel - contains the cpuLog
@@ -735,6 +750,7 @@ public class WebApp implements EntryPoint {
 	// Executes an instruction when in simulation or single-cycle mode
 	private void executeInstruction(boolean visual) {
 		singleCycleSim.executeInstruction();
+		this.memLog.setText(singleCycleSim.getMemLog());
 		editor.removeAllMarkers();
 		editor.addMarker(AceRange.create(singleCycleSim.getCurrentLineNumber(), 0, singleCycleSim.getCurrentLineNumber(), 
 				41), "ace_selection", AceMarkerType.FULL_LINE, false);
@@ -860,5 +876,6 @@ public class WebApp implements EntryPoint {
 	private PipelinedSimulator pipelineSim;
 	private AceEditor editor;
 	private AceEditor cpuLog;
+	private AceEditor memLog;
 	private TextBox commandLine;
 }

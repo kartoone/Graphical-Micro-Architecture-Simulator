@@ -189,6 +189,13 @@ public abstract class LEGv8_Simulator {
 	public String getCpuLog() {
 		return cpu.getCpuLog();
 	}
+
+	/**
+	 * @return the contents of the Memory log
+	 */
+	public String getMemLog() {
+		return cpu.getMemLog();
+	}
 	
 	/**
 	 * @return	the line number in the text editor of the previously executed instruction
