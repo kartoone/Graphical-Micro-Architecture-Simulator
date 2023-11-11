@@ -32,7 +32,10 @@
       <classpath refid="project.class.path"/>
     </javac>
     <copy todir="war/WEB-INF/classes">
-      <fileset dir="src" excludes="**/*.java"/>
+      <fileset dir="src">
+		<exclude name="ace/**"/>
+        <exclude name="**/*.java"/>
+	  </fileset>
     </copy>
   </target>
 
@@ -48,6 +51,10 @@
       <arg line="${gwt.args}"/>
       <arg value="com.arm.legv8simulator.LEGv8_Simulator"/>
     </java>
+	<copy todir="war/legv8_simulator">  
+    	<fileset dir="src" includes="ace/**" />  
+	</copy> 
+    <copy todir="war/legv8_simulator" file="${gwt.sdk}/gwt-servlet.jar" />
   </target>
 
   <target name="devmode" depends="javac" description="Run development mode (pass -Dgwt.args=-nosuperDevMode to fallback to classic DevMode)">
