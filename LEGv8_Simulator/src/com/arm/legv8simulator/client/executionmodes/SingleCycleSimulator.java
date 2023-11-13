@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import com.arm.legv8simulator.client.instruction.Instruction;
 import com.arm.legv8simulator.client.lexer.TextLine;
+import com.arm.legv8simulator.client.memory.CacheConfiguration;
 
 /**
  * The simulator used for the simulation and single cycle visual execution modes
@@ -14,10 +15,12 @@ import com.arm.legv8simulator.client.lexer.TextLine;
 public class SingleCycleSimulator extends LEGv8_Simulator {
 
 	/**
-	 * @param code	individual lines of source code from the text editor
+	 * @param code		individual lines of source code from the text editor
+	 * @param icacheConfig  i-cache configuration size and blocksize (null to ignore)
+	 * @param dcacheConfig  d-cache configuration size and blocksize (null to ignore)
 	 */
-	public SingleCycleSimulator(ArrayList<TextLine> code) {
-		super(code);
+	public SingleCycleSimulator(ArrayList<TextLine> code, CacheConfiguration icacheConfig, CacheConfiguration dcacheConfig) {
+		super(code, icacheConfig, dcacheConfig);
 	}
 
 	/**

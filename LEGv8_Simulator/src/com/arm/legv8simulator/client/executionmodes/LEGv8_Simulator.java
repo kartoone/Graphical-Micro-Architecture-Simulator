@@ -11,6 +11,8 @@ import com.arm.legv8simulator.client.instruction.Instruction;
 import com.arm.legv8simulator.client.instruction.Mnemonic;
 import com.arm.legv8simulator.client.instruction.UndefinedLabelException;
 import com.arm.legv8simulator.client.lexer.TextLine;
+import com.arm.legv8simulator.client.memory.CacheConfiguration;
+import com.arm.legv8simulator.client.memory.Cache;
 import com.arm.legv8simulator.client.memory.Memory;
 
 /**
@@ -26,12 +28,14 @@ public abstract class LEGv8_Simulator {
 	 * call a method to execute an instruction in a derived class.
 	 * 
 	 * @param code	the individual lines of LEGv8 source code from the text editor
+	 * @param icacheConfig  i-cache configuration size and blocksize (null to ignore)
+	 * @param dcacheConfig  d-cache configuration size and blocksize (null to ignore)
 	 */
-	public LEGv8_Simulator(ArrayList<TextLine> code) {
+	public LEGv8_Simulator(ArrayList<TextLine> code, CacheConfiguration icacheConfig, CacheConfiguration dcacheConfig) {
 		this.code = code; 
 		branchTable = new HashMap<String, Integer>();
 		cpuInstructions = new ArrayList<Instruction>();
-		cpu = new CPU();
+		cpu = new CPU(icacheConfig, dcacheConfig);
 		compileErrors = new ArrayList<Error>();
 		parseCode();
 		populateBranchTable();
@@ -191,7 +195,21 @@ public abstract class LEGv8_Simulator {
 	}
 
 	/**
-	 * @return the contents of the Memory log
+	 * @return the contents of the I-Memory log
+	 */
+	public String getIMemLog() {
+		return cpu.getIMemLog();
+	}
+
+	/**
+	 * @return the contents of the D-Memory log
+	 */
+	public String getDMemLog() {
+		return cpu.getDMemLog();
+	}
+	
+	/**
+	 * @return the "relevant" contents of Memory 
 	 */
 	public String getMemLog() {
 		return cpu.getMemLog();

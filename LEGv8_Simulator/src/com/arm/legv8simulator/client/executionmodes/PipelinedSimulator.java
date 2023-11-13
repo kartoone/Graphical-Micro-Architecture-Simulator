@@ -25,7 +25,7 @@ public class PipelinedSimulator extends LEGv8_Simulator {
 	 * @param code	individual lines of source code from the text editor
 	 */
 	public PipelinedSimulator(ArrayList<TextLine> code) {
-		super(code);
+		super(code, null, null); // disable pipeline cache for now
 		visibleState = new CPUSnapshot(cpu);
 	}
 

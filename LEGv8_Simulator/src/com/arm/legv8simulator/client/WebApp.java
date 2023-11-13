@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import com.arm.legv8simulator.client.executionmodes.LEGv8_Simulator;
 import com.arm.legv8simulator.client.executionmodes.PipelinedSimulator;
 import com.arm.legv8simulator.client.executionmodes.SingleCycleSimulator;
+import com.arm.legv8simulator.client.memory.CacheConfiguration;
 import com.arm.legv8simulator.client.instruction.Instruction;
 import com.arm.legv8simulator.client.lexer.TextLine;
 import com.google.gwt.core.client.EntryPoint;
@@ -47,6 +48,10 @@ public class WebApp implements EntryPoint {
 	public static final String SIMULATION = "Simulation";
 	public static final String SINGLE_CYCLE_VISUAL = "Single Cycle";
 	public static final String PIPELINE_VISUAL = "Pipeline";
+	public static final String NOCACHE_VISUAL = "No cache";
+	public static final String ICACHE_VISUAL = "L1 I-cache only";
+	public static final String DCACHE_VISUAL = "L1 D-cache only";
+	public static final String BOTHCACHE_VISUAL = "Both L1 caches";
 	
 	private static final int HORIZTONAL_PADDING = 20;
 	private static final int VERTICAL_PADDING = 30;
@@ -73,7 +78,7 @@ public class WebApp implements EntryPoint {
 							-registerPanel.getOffsetHeight()-BANNER_HEIGHT-VERTICAL_PADDING;	
 				}
 				if (editorHeight > 200) {
-					editor.setHeight((editorHeight-350) + "px");
+					editor.setHeight((editorHeight-10) + "px"); // -10 to make a little room for the memory access log even if not completely visible
 				} else {
 					editor.setHeight("200px");
 				}
@@ -90,14 +95,13 @@ public class WebApp implements EntryPoint {
 			private void resizeSingleCycleDatapath(double width) {
 				if (width > 1600) {
 					editor.setWidth("675px");
-					memLog.setWidth("675px");
 				} else {
 					editor.setWidth(registerPanel.getOffsetWidth() + "px");
-					memLog.setWidth(registerPanel.getOffsetWidth() + "px");
 				}
 				double datapathWidth = width-editorPanel.getOffsetWidth()-HORIZTONAL_PADDING;
 				datapathPanel.remove(scDatapath.getCanvas());
-				scDatapath = new SingleCycleVis(datapathWidth, datapathWidth/ASPECT_RATIO);
+				datapathPanel.remove(memoryPanel);
+				scDatapath = new SingleCycleVis(datapathWidth, datapathWidth/ASPECT_RATIO, cacheModes.getSelectedItemText());
 				if (singleCycleSim != null && singleCycleSim.getCurrentInstruction() != null) {
 					scDatapath.updateDatapath(singleCycleSim.getCurrentInstruction(), 
 							singleCycleSim.getBranchTaken(), singleCycleSim.getSTXRSucceed(), 
@@ -105,6 +109,9 @@ public class WebApp implements EntryPoint {
 							code.get(singleCycleSim.getCurrentInstruction().getLineNumber()).getArgs().get(0));
 				}
 				datapathPanel.add(scDatapath.getCanvas());
+				if (currentCacheMode != NOCACHE_VISUAL) {
+					datapathPanel.add(memoryPanel);
+				}
 			}
 			
 			private void resizePipelineDatapath(double width) {
@@ -115,7 +122,7 @@ public class WebApp implements EntryPoint {
 				}
 				double datapathWidth = width-editorPanel.getOffsetWidth()-HORIZTONAL_PADDING;
 				datapathPanel.remove(pDatapath.getCanvas());
-				pDatapath = new PipelineVis(datapathWidth, datapathWidth/ASPECT_RATIO);
+				pDatapath = new PipelineVis(datapathWidth, datapathWidth/ASPECT_RATIO, cacheModes.getSelectedItemText());
 				datapathPanel.add(pDatapath.getCanvas());
 			}
 		});
@@ -123,17 +130,29 @@ public class WebApp implements EntryPoint {
 		//create LEGv8 source code editor
 		editor = new AceEditor();
 		editor.setWidth("600px"); // dummy values, size adjusted later based on window size
-		editor.setHeight("350px"); 
+		editor.setHeight("700px"); 
 		
 		// create cpuLog
 		cpuLog = new AceEditor();
 		cpuLog.setWidth("600px");
 		cpuLog.setHeight("350px");
 		
-		// create memLog
+		// create memLogs
 		memLog = new AceEditor();
-		memLog.setWidth("600px");
+		memLog.setWidth("255px");
 		memLog.setHeight("350px");
+		imemLog = new AceEditor();
+		imemLog.setWidth("255px");
+		imemLog.setHeight("350px");
+		dmemLog = new AceEditor();
+		dmemLog.setWidth("255px");
+		dmemLog.setHeight("350px");
+		icache = new AceEditor();
+		icache.setWidth("350px");
+		icache.setHeight("350px");
+		dcache = new AceEditor();
+		dcache.setWidth("350px");
+		dcache.setHeight("350px");
 		
 		// build the UI
 		initUIComponents();
@@ -159,9 +178,24 @@ public class WebApp implements EntryPoint {
 		memLog.setTheme(AceEditorTheme.MONOKAI);
 		memLog.setReadOnly(true);
 		memLog.setShowGutter(false);
+		imemLog.startEditor();
+		imemLog.setTheme(AceEditorTheme.MONOKAI);
+		imemLog.setReadOnly(true);
+		imemLog.setShowGutter(false);
+		dmemLog.startEditor();
+		dmemLog.setTheme(AceEditorTheme.MONOKAI);
+		dmemLog.setReadOnly(true);
+		dmemLog.setShowGutter(false);
+		icache.startEditor();
+		icache.setTheme(AceEditorTheme.MONOKAI);
+		icache.setReadOnly(true);
+		icache.setShowGutter(false);
+		dcache.startEditor();
+		dcache.setTheme(AceEditorTheme.MONOKAI);
+		dcache.setReadOnly(true);
+		dcache.setShowGutter(false);
 		
 		// code from here to end of method is not used but program breaks if it is removed...
-		editor.initializeCommandLine(new AceDefaultCommandLine(commandLine));
 		editor.addCommand(new AceCommandDescription("increaseFontSize", 
 				new AceCommandDescription.ExecAction() {
 			@Override
@@ -233,9 +267,12 @@ public class WebApp implements EntryPoint {
 			editor.setWidth(registerPanel.getOffsetWidth() + "px");
 		}
 		double datapathWidth = width-editorPanel.getOffsetWidth()-HORIZTONAL_PADDING;
-		scDatapath = new SingleCycleVis(datapathWidth, datapathWidth/ASPECT_RATIO);
+		scDatapath = new SingleCycleVis(datapathWidth, datapathWidth/ASPECT_RATIO, currentCacheMode);
 		datapathPanel.add(scDatapath.getCanvas());
 		contentPanel.add(datapathPanel);
+		if (currentCacheMode != NOCACHE_VISUAL) {
+			datapathPanel.add(memoryPanel);
+		}
 		//page.add(debugPanel);
 	}
 	
@@ -250,7 +287,7 @@ public class WebApp implements EntryPoint {
 			editor.setWidth(registerPanel.getOffsetWidth() + "px");
 		}
 		double datapathWidth = width-editorPanel.getOffsetWidth()-HORIZTONAL_PADDING;
-		pDatapath = new PipelineVis(datapathWidth, datapathWidth/ASPECT_RATIO);
+		pDatapath = new PipelineVis(datapathWidth, datapathWidth/ASPECT_RATIO, currentCacheMode);
 		contentPanel.add(datapathPanel);
 		datapathPanel.add(debugPanel);
 		datapathPanel.add(pDatapath.getCanvas());
@@ -481,7 +518,7 @@ public class WebApp implements EntryPoint {
 		int editorHeight = Window.getClientHeight()-controlPanel.getOffsetHeight()
 				-registerPanel.getOffsetHeight()-BANNER_HEIGHT-VERTICAL_PADDING;
 		if (editorHeight > 200) {
-			editor.setHeight((editorHeight-350) + "px");
+			editor.setHeight((editorHeight-50) + "px");
 		} else {
 			editor.setHeight("200px");
 		}
@@ -489,6 +526,9 @@ public class WebApp implements EntryPoint {
 		datapathPanel.addStyleName("datapathPanel");
 		datapathPanel.setSize("100%", "100%");
 		datapathPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_LEFT);		
+		if (currentCacheMode != NOCACHE_VISUAL) {
+			datapathPanel.add(memoryPanel);
+		}
 	}
 	
 	// initialises all required UI components
@@ -496,6 +536,7 @@ public class WebApp implements EntryPoint {
 		initControlPanel();
 		initRegisterPanel();
 		initEditorPanel();
+		initMemoryPanel();
 		initDebugPanel();
 		page = new VerticalPanel();
 		page.setWidth("100%");
@@ -507,6 +548,7 @@ public class WebApp implements EntryPoint {
 	private void initControlPanel() {
 		initAssembleButt();
 		initExecModeDropdown();
+		initCacheModeDropdown();
 		initExecuteButt();
 		initHelpButt();
 		buildControlPanel();
@@ -532,6 +574,7 @@ public class WebApp implements EntryPoint {
 			@Override
 			public void onClick(ClickEvent event) {
 				currentExMode = executionModes.getSelectedItemText();
+				currentCacheMode = cacheModes.getSelectedItemText();
 				switch (currentExMode) {
 //				case SIMULATION :
 //					buildSimulationUI();
@@ -567,6 +610,41 @@ public class WebApp implements EntryPoint {
 		executionModes.addChangeHandler(new ChangeHandler() {
 			public void onChange(ChangeEvent event) {
 				currentExMode = executionModes.getSelectedItemText();
+				currentCacheMode = cacheModes.getSelectedItemText();
+				switch (currentExMode) {
+//				case SIMULATION :
+//					buildSimulationUI();
+//					pipelineSim = null;
+//					break;
+				case SINGLE_CYCLE_VISUAL :
+					buildSingleCycleUI();
+					pipelineSim = null;
+					break;
+				case PIPELINE_VISUAL :
+					buildPipelineUI();
+					singleCycleSim = null;
+					break;
+				}
+			}
+		});
+	}
+
+	private void initCacheModeDropdown() {
+		cacheModesLab = new Label("Cache Mode: ");
+		cacheModesLab.addStyleName("controlLabel");
+		cacheModes = new ListBox();
+		cacheModes.addItem(NOCACHE_VISUAL);
+		cacheModes.addItem(ICACHE_VISUAL);
+		cacheModes.addItem(DCACHE_VISUAL);
+		cacheModes.addItem(BOTHCACHE_VISUAL);
+		cacheModes.setVisibleItemCount(1);
+		cacheModes.addStyleName("dropdownBox");
+		currentCacheMode = NOCACHE_VISUAL;
+		cacheModes.addChangeHandler(new ChangeHandler() {
+			public void onChange(ChangeEvent event) {
+				currentExMode = executionModes.getSelectedItemText();
+				currentCacheMode = cacheModes.getSelectedItemText();
+				initMemoryPanel(); // reinit memory module to recreate the memory panel
 				switch (currentExMode) {
 //				case SIMULATION :
 //					buildSimulationUI();
@@ -621,6 +699,11 @@ public class WebApp implements EntryPoint {
 		buttonPanel.setVerticalAlignment(HasVerticalAlignment.ALIGN_MIDDLE);
 		buttonPanel.add(execModesLab);
 		buttonPanel.add(executionModes);
+		HorizontalPanel padding = new HorizontalPanel();
+		padding.setWidth("20px");
+		buttonPanel.add(padding);
+		buttonPanel.add(cacheModesLab);
+		buttonPanel.add(cacheModes);
 		HorizontalPanel padding1 = new HorizontalPanel();
 		padding1.setWidth("45px");
 		buttonPanel.add(padding1);
@@ -669,10 +752,53 @@ public class WebApp implements EntryPoint {
 		editorPanel = new VerticalPanel();
 		editorPanel.setStyleName("editorPanel");
 		editorPanel.add(editor);
-		editorPanel.add(new Label("Memory Access Log"));
-		editorPanel.add(memLog);
 	}
+
+	private void initMemoryPanel() {
+		if (memoryPanel != null)
+			datapathPanel.remove(memoryPanel);
 	
+		memoryPanel = new HorizontalPanel();
+		memoryPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+		memoryPanel.setVerticalAlignment(HasVerticalAlignment.ALIGN_TOP);
+		VerticalPanel subPanel = new VerticalPanel();
+		subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+		subPanel.add(new Label("I-Memory Access Log"));
+		subPanel.add(imemLog);
+		memoryPanel.add(subPanel);
+		subPanel = new VerticalPanel();
+		subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+		subPanel.add(new Label("D-Memory Access Log"));
+		subPanel.add(dmemLog);
+		memoryPanel.add(subPanel);
+		subPanel = new VerticalPanel();
+		subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+		subPanel.add(new Label("Memory Contents"));
+		subPanel.add(memLog);
+		memoryPanel.add(subPanel);
+		HorizontalPanel padding = new HorizontalPanel();
+		padding.setWidth("10px");
+		memoryPanel.add(padding);
+		if (currentCacheMode == ICACHE_VISUAL || currentCacheMode == BOTHCACHE_VISUAL) {
+			subPanel = new VerticalPanel();
+			subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+			subPanel.add(new Label("I-Cache Contents"));
+			subPanel.add(icache);
+			memoryPanel.add(subPanel);
+			padding = new HorizontalPanel();
+			padding.setWidth("10px");
+			memoryPanel.add(padding);
+
+		}
+		if (currentCacheMode == DCACHE_VISUAL || currentCacheMode == BOTHCACHE_VISUAL) {
+			subPanel = new VerticalPanel();
+			subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+			subPanel.add(new Label("D-Cache Contents"));
+			subPanel.add(dcache);
+			memoryPanel.add(subPanel);
+		}
+	}
+
 	// initialises the debug panel - contains the cpuLog
 	private void initDebugPanel() {
 		debugPanel = new VerticalPanel();
@@ -705,7 +831,7 @@ public class WebApp implements EntryPoint {
 	private void launchSingleCycleSim() {
 		editor.clearAnnotations();
 		splitIntoLines(editor.getText());
-		singleCycleSim = new SingleCycleSimulator(code);
+		singleCycleSim = new SingleCycleSimulator(code, createIcacheconfig(), createDcacheconfig()); // --CACHE-- helper methods to look at the cache selection options
 		String text = "";
 		for (int i=0; i<singleCycleSim.getCode().size(); i++) {
 			text += singleCycleSim.getCode().get(i).getLine() + "\n";
@@ -722,6 +848,14 @@ public class WebApp implements EntryPoint {
 		} else {
 			executeButt.setEnabled(true);
 		}
+	}
+
+	private CacheConfiguration createIcacheconfig() {
+		return null;
+	}
+	
+	private CacheConfiguration createDcacheconfig() {
+		return null;
 	}
 	
 	// starts a new PipleineSimulator object
@@ -750,6 +884,8 @@ public class WebApp implements EntryPoint {
 	// Executes an instruction when in simulation or single-cycle mode
 	private void executeInstruction(boolean visual) {
 		singleCycleSim.executeInstruction();
+		this.imemLog.setText(singleCycleSim.getIMemLog());
+		this.dmemLog.setText(singleCycleSim.getDMemLog());
 		this.memLog.setText(singleCycleSim.getMemLog());
 		editor.removeAllMarkers();
 		editor.addMarker(AceRange.create(singleCycleSim.getCurrentLineNumber(), 0, singleCycleSim.getCurrentLineNumber(), 
@@ -857,10 +993,14 @@ public class WebApp implements EntryPoint {
 	private VerticalPanel datapathPanel;
 	private VerticalPanel debugPanel;
 	private VerticalPanel writingPanel;
+	private HorizontalPanel memoryPanel;
 	
 	private Label execModesLab;
+	private Label cacheModesLab;
 	private String currentExMode;
+	private String currentCacheMode = NOCACHE_VISUAL;
 	private ListBox executionModes;
+	private ListBox cacheModes;
 	private SingleCycleVis scDatapath;
 	private PipelineVis pDatapath;
 	private Error runtimeError;
@@ -876,6 +1016,9 @@ public class WebApp implements EntryPoint {
 	private PipelinedSimulator pipelineSim;
 	private AceEditor editor;
 	private AceEditor cpuLog;
+	private AceEditor imemLog;
+	private AceEditor dmemLog;
 	private AceEditor memLog;
-	private TextBox commandLine;
+	private AceEditor icache;
+	private AceEditor dcache;
 }

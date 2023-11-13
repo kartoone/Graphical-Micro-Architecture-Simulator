@@ -112,10 +112,11 @@ public class PipelineVis {
 	 * @param canvasWidth	the width of this pipeline datapath
 	 * @param canvasHeight	the height of this pipeline datapath
 	 */
-	public PipelineVis(double canvasWidth, double canvasHeight) {
+	public PipelineVis(double canvasWidth, double canvasHeight, String cacheMode) {
 		canvas = Canvas.createIfSupported();
 		this.canvasWidth = canvasWidth;
 		this.canvasHeight = canvasHeight;
+		this.cacheMode = cacheMode;
 		init();
 	}
 	
@@ -1689,6 +1690,7 @@ public class PipelineVis {
 	
 	private double canvasWidth;
 	private double canvasHeight;
+	private String cacheMode; // for display of caches (or not)
 	private Canvas canvas;
 	private Context2d ctx;
 }

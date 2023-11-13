@@ -4,6 +4,9 @@ import java.util.ArrayList;
 
 import com.arm.legv8simulator.client.Error;
 import com.arm.legv8simulator.client.instruction.Instruction;
+import com.arm.legv8simulator.client.memory.CacheConfigurationException;
+import com.arm.legv8simulator.client.memory.CacheConfiguration;
+import com.arm.legv8simulator.client.memory.Cache;
 import com.arm.legv8simulator.client.memory.Memory;
 import com.arm.legv8simulator.client.memory.SegmentFaultException;
 
@@ -24,7 +27,7 @@ import com.arm.legv8simulator.client.memory.SegmentFaultException;
  */ 
 
 public class CPU {
-	
+
 	public static final int INSTRUCTION_SIZE = 4;
 	public static final int NUM_REGISTERS = 32;
 	
@@ -64,10 +67,14 @@ public class CPU {
 	/**
 	 * Constructs a new <code>CPU</code> object, initialising registers and flags to 0 and false respectively.
 	 * The SP register is then set according the definition of the LEGv8 virtual address space in Patterson and Hennessy ARM Edition.
+     *
+	 * @param icacheConfig  i-cache configuration size and blocksize (null to ignore)
+	 * @param dcacheConfig  d-cache configuration size and blocksize (null to ignore)
 	 * 
 	 * @see Memory
+	 * @see Cache
 	 */
-	public CPU() {
+	public CPU(CacheConfiguration icacheConfig, CacheConfiguration dcacheConfig) {
 		registerFile = new long[NUM_REGISTERS];
 		for (int i=0; i<NUM_REGISTERS; i++) {
 			registerFile[i] = 0L;
@@ -77,7 +84,15 @@ public class CPU {
 		Zflag = false;
 		Cflag = false;
 		Vflag = false;
-		memLog.append("OP\t\tADDR(HEX)\n");
+		imemLog.append("OP\t\tINST ADDR(HEX)\tCACHE\n");
+		dmemLog.append("OP\t\tDATA ADDR(HEX)\tCACHE\n");
+		if (icacheConfig != null && icacheConfig.getSize() > 0) {
+			try {
+				icacheMem = new Cache(icacheConfig);
+			} catch (CacheConfigurationException ex) {
+				System.err.print("A cache configuration exception occured: " + ex);
+			}
+		}
 	}
 	
 	/**
@@ -140,6 +155,21 @@ public class CPU {
 	
 	/**
 	 * @return a string showing full list of memory accesses
+	 */
+	public String getIMemLog() {
+		return imemLog.toString();
+	}
+
+	/**
+	 * @return a string showing full list of memory accesses
+	 */
+	public String getDMemLog() {
+		return dmemLog.toString();
+	}
+
+	/**
+	 * @param ins we need the instruction to determine its address and whether it was a data access instruction
+	 * @return the "relevant" contents of Memory 
 	 */
 	public String getMemLog() {
 		return memLog.toString();
@@ -280,6 +310,8 @@ public class CPU {
 			throws SegmentFaultException, PCAlignmentException, SPAlignmentException {
 		int[] args = ins.getArgs();
 		branchTaken = false; // rather ugly but... set to false by default as most instructions are not branches. 
+
+		_checkICache(ins.getMnemonic().toString(), memory);
 		//if a branch instruction is executed and the branch is taken, will be set to true in that instruction method 
 		switch (ins.getMnemonic()) {
 		case ADD :
@@ -619,17 +651,16 @@ public class CPU {
 		if (destReg == XZR) {
 			cpuLog.append("Ignored attempted assignment to XZR. \n");
 		} else {
+			_checkDCache("LDUR", baseAddressReg, offset, memory); // NEED TO USE THE CACHE RETURNED VALUE INSTEAD OF READING FROM MEMORY 
 			registerFile[destReg] = memory.loadDoubleword(registerFile[baseAddressReg]+offset);
 			cpuLog.append("LDUR \t X" + destReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
-			Long addr = registerFile[baseAddressReg] + offset;
-			String hex = Long.toHexString(addr);
-			memLog.append("LDUR:\t0x" + hex + "\n");
 		}
 	}
 
 	private void STUR(int valReg, int baseAddressReg, int offset, Memory memory) 
 			throws SegmentFaultException, SPAlignmentException {
 		if (baseAddressReg == SP) checkSPAlignment();
+		_checkDCache("STUR", baseAddressReg, offset, memory); // NEED TO DECIDE ON WRITE-BACK OR WRITE-THROUGH POLICY
 		memory.storeDoubleword(registerFile[baseAddressReg]+offset, registerFile[valReg]);
 		clearExclusiveAccessTag(registerFile[baseAddressReg]+offset, Memory.DOUBLEWORD_SIZE);
 		cpuLog.append("STUR \t X" + valReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
@@ -641,6 +672,7 @@ public class CPU {
 		if (destReg == XZR) {
 			cpuLog.append("Ignored attempted assignment to XZR. \n");
 		} else {
+			_checkDCache("LDURSW", baseAddressReg, offset, memory);
 			registerFile[destReg] = memory.loadSignedWord(registerFile[baseAddressReg]+offset);
 			cpuLog.append("LDURSW \t X" + destReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
 		}
@@ -649,6 +681,7 @@ public class CPU {
 	private void STURW(int valReg, int baseAddressReg, int offset, Memory memory) 
 			throws SegmentFaultException, SPAlignmentException {
 		if (baseAddressReg == SP) checkSPAlignment();
+		_checkDCache("STURW", baseAddressReg, offset, memory); 
 		memory.storeWord(registerFile[baseAddressReg]+offset, registerFile[valReg]);
 		clearExclusiveAccessTag(registerFile[baseAddressReg]+offset, Memory.WORD_SIZE);
 		cpuLog.append("STURW \t X" + valReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
@@ -660,7 +693,8 @@ public class CPU {
 		if (destReg == XZR) {
 			cpuLog.append("Ignored attempted assignment to XZR. \n");
 		} else {
-			registerFile[destReg] = memory.loadHalfword(registerFile[destReg]+offset);
+			_checkDCache("LDURH", baseAddressReg, offset, memory);
+			registerFile[destReg] = memory.loadHalfword(registerFile[baseAddressReg]+offset); // fixed bug ... was using destReg as the base register!
 			cpuLog.append("LDURH \t X" + destReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
 		}
 	}
@@ -668,6 +702,7 @@ public class CPU {
 	private void STURH(int valReg, int baseAddressReg, int offset, Memory memory) 
 			throws SegmentFaultException, SPAlignmentException {
 		if (baseAddressReg == SP) checkSPAlignment();
+		_checkDCache("STURH", baseAddressReg, offset, memory); 
 		memory.storeHalfword(registerFile[baseAddressReg]+offset, registerFile[valReg]);
 		clearExclusiveAccessTag(registerFile[baseAddressReg]+offset, Memory.HALFWORD_SIZE);
 		cpuLog.append("STURH \t X" + valReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
@@ -679,6 +714,7 @@ public class CPU {
 		if (destReg == XZR) {
 			cpuLog.append("Ignored attempted assignment to XZR. \n");
 		} else {
+			_checkDCache("LDURB", baseAddressReg, offset, memory);
 			registerFile[destReg] = memory.loadByte(registerFile[baseAddressReg]+offset);
 			cpuLog.append("LDURB \t X" + destReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
 		}
@@ -687,6 +723,7 @@ public class CPU {
 	private void STURB(int valReg, int baseAddressReg, int offset, Memory memory) 
 			throws SegmentFaultException, SPAlignmentException {
 		if (baseAddressReg == SP) checkSPAlignment();
+		_checkDCache("STURB", baseAddressReg, offset, memory); 
 		memory.storeByte(registerFile[baseAddressReg]+offset, registerFile[valReg]);
 		clearExclusiveAccessTag(registerFile[baseAddressReg]+offset, Memory.BYTE_SIZE);
 		cpuLog.append("STURB \t X" + valReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
@@ -699,6 +736,7 @@ public class CPU {
 		if (destReg == XZR) {
 			cpuLog.append("Ignored attempted assignment to XZR. \n");
 		} else {
+			_checkDCache("LDXR", baseAddressReg, offset, memory);
 			registerFile[destReg] = memory.loadDoubleword(address);
 			taggedAddress = address;
 			cpuLog.append("LDXR \t X" + destReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
@@ -710,6 +748,7 @@ public class CPU {
 		if (baseAddressReg == SP) checkSPAlignment();
 		long address = registerFile[baseAddressReg] + offset;
 		if (taggedAddress == address) {
+			_checkDCache("STXR", baseAddressReg, offset, memory); 
 			memory.storeDoubleword(address, registerFile[valReg]);
 			registerFile[outcomeReg] = 0;
 			taggedAddress = 0;
@@ -890,11 +929,67 @@ public class CPU {
 		cpuLog.append("BL \t" + "0x" + Long.toHexString(registerFile[LR]) + " \n");
 	}
 
+	// note that this also updates the relevant memory contents
+	private void _checkICache(String opcode, Memory memory) {
+		Long addr = getPC();
+		String hex = Long.toHexString(addr);
+		imemLog.append(opcode + ":\t0x" + hex + "\t" + "HIT or MISS" + "\n");
+
+		// reset the memory contents "log" and fetch the surrounding memory
+		memLog.setLength(0); // more responsible and better performance than allocating new StringBuilder...
+		memLog.append("NEARBY INST MEM ***INDICATES CURRENT INSTR***\n");
+
+		Long addrTWOPRIOR = addr - 16;
+		Long addrONEPRIOR = addr - 8;
+		Long addrONEPLUS = addr + 8;
+		Long addrTWOPLUS = addr + 16;
+
+		if (addrTWOPRIOR >= memory.TEXT_SEGMENT_OFFSET) {
+			memLogAppend(addrTWOPRIOR, memory, false);	
+		}
+		if (addrONEPRIOR >= memory.TEXT_SEGMENT_OFFSET) {
+			memLogAppend(addrONEPRIOR, memory, false);	
+		}
+		
+		// we aren't going to have giant programs in this simulator so need to bounds check the PLUS ones, but particularly when our program first starts the PRIOR addresses might be out of bounds
+		memLogAppend(addr, memory, true);	
+		memLogAppend(addrONEPLUS, memory, false);	
+		memLogAppend(addrTWOPLUS, memory, false);	
+	}
+		
+	private void memLogAppend(Long addr, Memory memory, boolean iscurrent) {
+		if (iscurrent) {
+			memLog.append("***");
+		}
+
+		try {
+			memLog.append("0x" + Long.toHexString(addr) + "\t" + Long.toHexString(memory.loadInstructionDoubleword(addr)));
+		} catch (Exception ex) {
+			memLog.append("MEM FAULT"); // should never happen but oh well
+		}
+
+		if (iscurrent) {
+			memLog.append("***\n");
+		} else {
+			memLog.append("\n");
+		}
+	}	
+
+	private void _checkDCache(String opcode, int baseAddressReg, int offset, Memory memory) {
+		Long addr = registerFile[baseAddressReg] + offset;
+		String hex = Long.toHexString(addr);
+		dmemLog.append(opcode + ":\t0x" + hex + "\t" + "HIT or MISS" + "\n");
+	}
+
 	private boolean branchTaken = false;
 	private boolean STXRSucceed = false;
 	private StringBuilder cpuLog = new StringBuilder("");
+	private StringBuilder imemLog = new StringBuilder("");
+	private StringBuilder dmemLog = new StringBuilder("");
 	private StringBuilder memLog = new StringBuilder("");
 	private long[] registerFile;
+	private Cache icacheMem;
+	private Cache dcacheMem;
 	private long taggedAddress;
 	private int instructionIndex;
 	private boolean Nflag;

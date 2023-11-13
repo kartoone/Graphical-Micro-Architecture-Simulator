@@ -44,6 +44,25 @@ public class Memory {
 	/**
 	 * @param address	the address from which to retrieve data.
 	 * @return			the doubleword stored at <code>address</code>
+	 * @throws SegmentFaultException (but checks agaist TEXT_SEMENT)
+	 */
+	public long loadInstructionDoubleword(long address) throws SegmentFaultException {
+		boundsInstrCheck(address, DOUBLEWORD_SIZE);
+		for (int i=0; i<DOUBLEWORD_SIZE; i++) {
+			Byte b = memory.get(address+i);
+			if (b == null) {
+				buffer.put(i, (byte) 0);
+			} else {
+				buffer.put(i, b);
+			}
+		}
+		return buffer.getLong(0);
+	}
+
+
+	/**
+	 * @param address	the address from which to retrieve data.
+	 * @return			the doubleword stored at <code>address</code>
 	 * @throws SegmentFaultException
 	 */
 	public long loadDoubleword(long address) throws SegmentFaultException {
@@ -180,6 +199,18 @@ public class Memory {
 	private void boundsCheck(long address, int figureSize) throws SegmentFaultException {
 		if (address > STACK_BASE-figureSize || address < DYNAMIC_DATA_SEGMENT_OFFSET) {
 			throw new SegmentFaultException(address, "stack or heap");
+		}
+	}
+
+	/* Checks to make sure the memory access is within the text segment
+	 * 
+	 * @param address		the address from which to load instruction bytes.
+	 * @param figureSize	the number of bytes being loaded or stored.
+	 * @throws SegmentFaultException
+	 */
+	private void boundsInstrCheck(long address, int figureSize) throws SegmentFaultException {
+		if (address < TEXT_SEGMENT_OFFSET) {
+			throw new SegmentFaultException(address, "invalid instr memory access");
 		}
 	}
 	

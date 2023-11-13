@@ -11,11 +11,14 @@ import com.google.gwt.canvas.dom.client.TextMetrics;
 /**
  * Draws the LEGv8 single cycle datapath as defined in Patterson and Hennessy ARM Edition.
  * 
+ *   cache support added in 2023 by Brian Toone and his COSC 305 Computer Architecture class at Samford University
+ *   cache support changes are all indicated with --CACHE-- at the beginning of the comment
  * @author Jonathan Wright, 2016
+ * @author Brian Toone, 2023
  */
 public class SingleCycleVis {
 	
-	private static final int CANVAS_HEIGHT_REF = 625;
+	private static final int CANVAS_HEIGHT_REF = 625; /* --CACHE-- will add to ref height as appropriate */
 	private static final int CANVAS_WIDTH_REF = 895;
 	
 	// Coordinate positions  and dimensions for each of the components in the datapath
@@ -58,6 +61,7 @@ public class SingleCycleVis {
 	private static final double[] FLAG_AND_COORDS = {645, FLAGS_COORDS[1]+FLAGS_DIMENSIONS[1]/2-4*FLAG_AND_DIMENSIONS[1]/5};
 	private static final double[] ZERO_AND_DIMENSIONS = {20, 20};
 	private static final double[] ZERO_AND_COORDS = {715, FLAGS_COORDS[1]+FLAGS_DIMENSIONS[1]/2-4*ZERO_AND_DIMENSIONS[1]/5};
+
 	
 	private static final double CONTROL_OFFSET = 2.5;
 	private static final double CONTROL_PADDING	= (CONTROL_DIMENSIONS[1]-2*CONTROL_OFFSET)/10;
@@ -76,10 +80,11 @@ public class SingleCycleVis {
 	 * @param canvasWidth	the width of this single cycle datapath
 	 * @param canvasHeight	the height of this single cycle datapath
 	 */
-	public SingleCycleVis(double canvasWidth, double canvasHeight) {
+	public SingleCycleVis(double canvasWidth, double canvasHeight, String cacheMode) {
 		canvas = Canvas.createIfSupported();
 		this.canvasWidth = canvasWidth;
 		this.canvasHeight = canvasHeight;
+		this.cacheMode = cacheMode;
 		init();
 	}
 	
@@ -87,12 +92,13 @@ public class SingleCycleVis {
 	 * Draws the single cycle datapath without any wire/component highlighting
 	 */
 	public void init(){
+		int cacheHeight = cacheMode != WebApp.NOCACHE_VISUAL ? 300 : 0;
 		canvas.setWidth(canvasWidth + "px");
-		canvas.setHeight(canvasHeight + "px");
+		canvas.setHeight((canvasHeight-cacheHeight) + "px");
 		canvas.setCoordinateSpaceWidth((int) canvasWidth);
 		canvas.setCoordinateSpaceHeight((int) canvasHeight);
 		ctx = canvas.getContext2d();
-		ctx.scale((double)canvasWidth/CANVAS_WIDTH_REF, (double)canvasHeight/CANVAS_HEIGHT_REF);
+		ctx.scale((double)canvasWidth/CANVAS_WIDTH_REF, (double)canvasHeight/(CANVAS_HEIGHT_REF));
 		datapathInit();
 	}
 	
@@ -150,6 +156,7 @@ public class SingleCycleVis {
 				drawDatapathLoad(m);
 				drawInstructionTextRM(ins);
 			}
+			// --CACHE-- update the L1D-Cache
 			break;
 		case MNEMONIC_RRM :
 			drawDatapathSTXR(stxrSucceed, m);
@@ -1781,8 +1788,9 @@ public class SingleCycleVis {
 	private void drawInsMem_TXT() {
 		TextMetrics t = ctx.measureText("Instruction");
 		ctx.fillText("Instruction", INS_MEM_COORDS[0]+INS_MEM_DIMENSIONS[0]/2-t.getWidth()/2, INS_MEM_COORDS[1]+5*INS_MEM_DIMENSIONS[1]/6);
-		t = ctx.measureText("memory");
-		ctx.fillText("memory", INS_MEM_COORDS[0]+INS_MEM_DIMENSIONS[0]/2-t.getWidth()/2, INS_MEM_COORDS[1]+5*INS_MEM_DIMENSIONS[1]/6+12.5);
+		String text = (cacheMode == WebApp.ICACHE_VISUAL || cacheMode == WebApp.BOTHCACHE_VISUAL) ? "L1 Cache" : "memory";
+		t = ctx.measureText(text);
+		ctx.fillText(text, INS_MEM_COORDS[0]+INS_MEM_DIMENSIONS[0]/2-t.getWidth()/2, INS_MEM_COORDS[1]+5*INS_MEM_DIMENSIONS[1]/6+12.5);
 	}
 	
 	private void drawMux_TXT(double[] muxCoords, double[] muxDimensions, String top, String bottom) {
@@ -1848,8 +1856,9 @@ public class SingleCycleVis {
 	private void drawDataMem_TXT() {
 		TextMetrics t = ctx.measureText("Data");
 		ctx.fillText("Data", DATA_MEM_COORDS[0]+6.5*DATA_MEM_DIMENSIONS[0]/10-t.getWidth()/2, DATA_MEM_COORDS[1]+DATA_MEM_DIMENSIONS[1]/2+10);
-		t = ctx.measureText("memory");
-		ctx.fillText("memory", DATA_MEM_COORDS[0]+6.5*DATA_MEM_DIMENSIONS[0]/10-t.getWidth()/2, DATA_MEM_COORDS[1]+DATA_MEM_DIMENSIONS[1]/2+25);
+		String text = (cacheMode == WebApp.DCACHE_VISUAL || cacheMode == WebApp.BOTHCACHE_VISUAL) ? "L1 Cache" : "memory";
+		t = ctx.measureText(text);
+		ctx.fillText(text, DATA_MEM_COORDS[0]+6.5*DATA_MEM_DIMENSIONS[0]/10-t.getWidth()/2, DATA_MEM_COORDS[1]+DATA_MEM_DIMENSIONS[1]/2+25);
 	}
 
 	private void drawPC4_TXT() {
@@ -2038,6 +2047,7 @@ public class SingleCycleVis {
 	
 	private double canvasWidth;
 	private double canvasHeight;
+	private String cacheMode; // --CACHE-- determines which caches to display (if any)
 	private Canvas canvas;
 	private Context2d ctx;
 }

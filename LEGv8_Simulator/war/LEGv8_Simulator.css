@@ -11,6 +11,13 @@ h1 {
   	text-align: center;
 }
 
+.memoryPanel {
+    padding-left: 0px;
+    padding-right: 5px;
+    padding-top: 0px;
+    margin-bottom: 20px;
+}
+
 .registerPanel {
     padding-left: 0px;
     padding-right: 5px;
