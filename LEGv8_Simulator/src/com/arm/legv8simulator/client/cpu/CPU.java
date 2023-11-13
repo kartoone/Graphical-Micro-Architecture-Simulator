@@ -931,13 +931,13 @@ public class CPU {
 
 	// note that this also updates the relevant memory contents
 	private void _checkICache(String opcode, Memory memory) {
-		Long addr = getPC();
+		Long addr = getPC() - 4; // instructionindex has already been incremented by the time this is called, so getPC already returns PC + 4 ... the branch has NOT been taken though so we can safely subtract 4 to get the address of the instruction currently being executed
 		String hex = Long.toHexString(addr);
 		imemLog.append(opcode + ":\t0x" + hex + "\t" + "HIT or MISS" + "\n");
 
 		// reset the memory contents "log" and fetch the surrounding memory
 		memLog.setLength(0); // more responsible and better performance than allocating new StringBuilder...
-		memLog.append("NEARBY INST MEM ***INDICATES CURRENT INSTR***\n");
+		memLog.append("NEARBY INST MEM ***CURRENT INSTR***\n");
 
 		Long addrTWOPRIOR = addr - 16;
 		Long addrONEPRIOR = addr - 8;
