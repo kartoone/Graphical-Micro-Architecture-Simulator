@@ -933,7 +933,8 @@ public class CPU {
 	private void _checkICache(String opcode, Memory memory) {
 		Long addr = getPC() - 4; // instructionindex has already been incremented by the time this is called, so getPC already returns PC + 4 ... the branch has NOT been taken though so we can safely subtract 4 to get the address of the instruction currently being executed
 		String hex = Long.toHexString(addr);
-		imemLog.append(opcode + ":\t0x" + hex + "\t" + "HIT or MISS" + "\n");
+		String status = icacheMem != null ? "H or M" : "--";
+		imemLog.append(opcode + ":\t0x" + hex + "\t" + status + "\n");
 
 		// reset the memory contents "log" and fetch the surrounding memory
 		memLog.setLength(0); // more responsible and better performance than allocating new StringBuilder...
@@ -978,7 +979,8 @@ public class CPU {
 	private void _checkDCache(String opcode, int baseAddressReg, int offset, Memory memory) {
 		Long addr = registerFile[baseAddressReg] + offset;
 		String hex = Long.toHexString(addr);
-		dmemLog.append(opcode + ":\t0x" + hex + "\t" + "HIT or MISS" + "\n");
+		String status = dcacheMem != null ? "H or M" : "--";
+		dmemLog.append(opcode + ":\t0x" + hex + "\t" + status + "\n");
 	}
 
 	private boolean branchTaken = false;
