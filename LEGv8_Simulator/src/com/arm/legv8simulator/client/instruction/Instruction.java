@@ -107,7 +107,7 @@ public class Instruction {
 		instruction.append(getImmBinary(0, 6, false));
 		instruction.append(getRegBinary(ins.getArgs()[1]));
 		instruction.append(getRegBinary(ins.getArgs()[0]));
-		return (int)Long.parseLong(instruction.toString(), 2);
+		return convertToInt(instruction, ins);
 	}
 	
 	private int assembleShift(Instruction ins) {
@@ -117,7 +117,7 @@ public class Instruction {
 		instruction.append(getImmBinary(ins.getArgs()[2], 6, false));
 		instruction.append(getRegBinary(ins.getArgs()[1]));
 		instruction.append(getRegBinary(ins.getArgs()[0]));
-		return Integer.parseInt(instruction.toString(), 2);
+		return convertToInt(instruction, ins);
 	}
 	
 	private int assembleRRI(Instruction ins) {
@@ -126,17 +126,17 @@ public class Instruction {
 		instruction.append(getImmBinary(ins.getArgs()[2], 12, false));
 		instruction.append(getRegBinary(ins.getArgs()[1]));
 		instruction.append(getRegBinary(ins.getArgs()[0]));
-		return Integer.parseInt(instruction.toString(), 2);
+		return convertToInt(instruction, ins);
 	}
 	
 	private int assembleRM(Instruction ins) {
 		StringBuilder instruction = new StringBuilder("");
 		instruction.append(ins.getMnemonic().opcode);
-		instruction.append(getImmBinary(ins.getArgs()[2], 12, true));
+		instruction.append(getImmBinary(ins.getArgs()[2], 9, true)); // bug fix - the singlecyclevis has a 12 here but the immediate in a D-format instruction is only 9 bits!
 		instruction.append("00");
 		instruction.append(getRegBinary(ins.getArgs()[1]));
 		instruction.append(getRegBinary(ins.getArgs()[0]));
-		return Integer.parseInt(instruction.toString(), 2);
+		return convertToInt(instruction, ins);
 	}
 	
 	private int assembleRRM(Instruction ins) {
@@ -146,7 +146,7 @@ public class Instruction {
 		instruction.append(getImmBinary(31, 6, false));
 		instruction.append(getRegBinary(ins.getArgs()[2]));
 		instruction.append(getRegBinary(ins.getArgs()[1]));
-		return Integer.parseInt(instruction.toString(), 2);
+		return convertToInt(instruction, ins);
 	}
 	
 	private int assembleRISI(Instruction ins) {
@@ -165,7 +165,7 @@ public class Instruction {
 		instruction.append(ins.getMnemonic().opcode + shift);
 		instruction.append(getImmBinary(ins.getArgs()[1], 16, false));
 		instruction.append(getRegBinary(ins.getArgs()[0]));
-		return Integer.parseInt(instruction.toString(), 2);
+		return convertToInt(instruction, ins);
 	}
 	
 	private int assembleRL(Instruction ins, int instructionIndex) {
@@ -173,14 +173,14 @@ public class Instruction {
 		instruction.append(ins.getMnemonic().opcode);
 		instruction.append(getImmBinary(ins.getArgs()[1]-instructionIndex, 19, true));
 		instruction.append(getRegBinary(ins.getArgs()[0]));
-		return Integer.parseInt(instruction.toString(), 2);
+		return convertToInt(instruction, ins);
 	}
 	
 	private int assembleL(Instruction ins, int instructionIndex) {
 		StringBuilder instruction = new StringBuilder("");
 		instruction.append(ins.getMnemonic().opcode);
 		instruction.append(getImmBinary(ins.getArgs()[0]-instructionIndex, 26, true));
-		return Integer.parseInt(instruction.toString(), 2);
+		return convertToInt(instruction, ins);
 	}
 	
 	// these two functions are copied exactly as is from the SingleCycleVis class ... they shouldn't be there. they should be over here.
@@ -208,6 +208,17 @@ public class Instruction {
 			immBinary = "0" + immBinary;
 		}
 		return immBinary;
+	}
+
+	private int convertToInt(StringBuilder instrb, Instruction ins) {
+		String instruction = instrb.toString();
+		if (instruction.length() != 32) {
+			rootLogger.log(Level.SEVERE, instruction + " is " + instruction.length() + " bits! " + ins.getMnemonic());
+			return 0;
+		} else {
+			long l = Long.parseLong(instruction, 2);
+			return (int) l;
+		}
 	}
 		
 	private Mnemonic mnemonic;

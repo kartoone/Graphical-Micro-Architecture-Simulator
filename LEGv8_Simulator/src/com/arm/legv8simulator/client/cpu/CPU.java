@@ -963,10 +963,10 @@ public class CPU {
 		memLog.setLength(0); // more responsible and better performance than allocating new StringBuilder...
 		memLog.append("INST ADDR ***CURRENT INSTR***\n");
 
-		Long addrTWOPRIOR = addr - 16;
-		Long addrONEPRIOR = addr - 8;
-		Long addrONEPLUS = addr + 8;
-		Long addrTWOPLUS = addr + 16;
+		Long addrTWOPRIOR = addr - 8;
+		Long addrONEPRIOR = addr - 4;
+		Long addrONEPLUS = addr + 4;
+		Long addrTWOPLUS = addr + 8;
 
 		if (addrTWOPRIOR >= memory.TEXT_SEGMENT_OFFSET) {
 			memLogAppend(addrTWOPRIOR, memory, false);	
@@ -987,7 +987,11 @@ public class CPU {
 		}
 
 		try {
-			memLog.append("0x" + Long.toHexString(addr) + "\t" + Long.toHexString(memory.loadInstructionWord(addr)));
+			StringBuilder sb = new StringBuilder(Long.toHexString(memory.loadInstructionWord(addr)));
+			String reversed = sb.reverse().toString();
+			String reversedSubstr = reversed.substring(0, Math.min(reversed.length(), 8));
+			String finalSubstr = new StringBuilder(reversedSubstr).reverse().toString();
+			memLog.append("0x" + Long.toHexString(addr) + "\t0x" + finalSubstr);
 		} catch (Exception ex) {
 			memLog.append("MEM FAULT"); // should never happen but oh well
 		}
