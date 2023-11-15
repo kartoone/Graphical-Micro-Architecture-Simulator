@@ -264,7 +264,7 @@ public class SingleCycleVis {
 		String[][] fields = new String[5][2];
 		fields[0][0] = ins.getMnemonic().opcode;
 		fields[0][1] = "Opcode";
-		fields[1][0] = getImmBinary(ins.getArgs()[2], 12, true);
+		fields[1][0] = getImmBinary(ins.getArgs()[2], 9, true); // bug fix this was 12 but should only be 9
 		fields[1][1] = "DT_address";
 		fields[2][0] = "00";
 		fields[2][1] = "op2";
