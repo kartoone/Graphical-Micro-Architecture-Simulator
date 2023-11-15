@@ -156,7 +156,6 @@ public class SingleCycleVis {
 				drawDatapathLoad(m);
 				drawInstructionTextRM(ins);
 			}
-			// --CACHE-- update the L1D-Cache
 			break;
 		case MNEMONIC_RRM :
 			drawDatapathSTXR(stxrSucceed, m);

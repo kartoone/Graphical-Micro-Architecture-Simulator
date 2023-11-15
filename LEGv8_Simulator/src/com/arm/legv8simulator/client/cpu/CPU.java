@@ -84,11 +84,20 @@ public class CPU {
 		Zflag = false;
 		Cflag = false;
 		Vflag = false;
-		imemLog.append("OP\t\tINST ADDR(HEX)\tCACHE\n");
-		dmemLog.append("OP\t\tDATA ADDR(HEX)\tCACHE\n");
+		imemLog.append("OP\t\tADDR(HEX)\tCACHE\n");
+		dmemLog.append("OP\t\tADDR(HEX)\tCACHE\n");
 		if (icacheConfig != null && icacheConfig.getSize() > 0) {
 			try {
 				icacheMem = new Cache(icacheConfig);
+				icacheLog.append(icacheMem.toString());
+			} catch (CacheConfigurationException ex) {
+				System.err.print("A cache configuration exception occured: " + ex);
+			}
+		}
+		if (dcacheConfig != null && dcacheConfig.getSize() > 0) {
+			try {
+				dcacheMem = new Cache(dcacheConfig);
+				dcacheLog.append(dcacheMem.toString());
 			} catch (CacheConfigurationException ex) {
 				System.err.print("A cache configuration exception occured: " + ex);
 			}
@@ -173,6 +182,20 @@ public class CPU {
 	 */
 	public String getMemLog() {
 		return memLog.toString();
+	}
+
+	/**
+	 * @return a string showing full list of memory accesses
+	 */
+	public String getICacheLog() {
+		return icacheLog.toString();
+	}
+
+	/**
+	 * @return a string showing full list of memory accesses
+	 */
+	public String getDCacheLog() {
+		return dcacheLog.toString();
 	}
 
 	/**
@@ -938,7 +961,7 @@ public class CPU {
 
 		// reset the memory contents "log" and fetch the surrounding memory
 		memLog.setLength(0); // more responsible and better performance than allocating new StringBuilder...
-		memLog.append("NEARBY INST MEM ***CURRENT INSTR***\n");
+		memLog.append("INST ADDR ***CURRENT INSTR***\n");
 
 		Long addrTWOPRIOR = addr - 16;
 		Long addrONEPRIOR = addr - 8;
@@ -964,7 +987,7 @@ public class CPU {
 		}
 
 		try {
-			memLog.append("0x" + Long.toHexString(addr) + "\t" + Long.toHexString(memory.loadInstructionDoubleword(addr)));
+			memLog.append("0x" + Long.toHexString(addr) + "\t" + Long.toHexString(memory.loadInstructionWord(addr)));
 		} catch (Exception ex) {
 			memLog.append("MEM FAULT"); // should never happen but oh well
 		}
@@ -989,6 +1012,8 @@ public class CPU {
 	private StringBuilder imemLog = new StringBuilder("");
 	private StringBuilder dmemLog = new StringBuilder("");
 	private StringBuilder memLog = new StringBuilder("");
+	private StringBuilder icacheLog = new StringBuilder("");
+	private StringBuilder dcacheLog = new StringBuilder("");
 	private long[] registerFile;
 	private Cache icacheMem;
 	private Cache dcacheMem;

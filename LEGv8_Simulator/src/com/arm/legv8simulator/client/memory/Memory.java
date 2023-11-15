@@ -42,13 +42,13 @@ public class Memory {
 	}
 
 	/**
-	 * @param address	the address from which to retrieve data.
-	 * @return			the doubleword stored at <code>address</code>
+	 * @param address	the address from which to retrieve the instruction.
+	 * @return			the instruction word stored at <code>address</code>
 	 * @throws SegmentFaultException (but checks agaist TEXT_SEMENT)
 	 */
-	public long loadInstructionDoubleword(long address) throws SegmentFaultException {
-		boundsInstrCheck(address, DOUBLEWORD_SIZE);
-		for (int i=0; i<DOUBLEWORD_SIZE; i++) {
+	public int loadInstructionWord(long address) throws SegmentFaultException {
+		boundsInstrCheck(address, WORD_SIZE);
+		for (int i=0; i<WORD_SIZE; i++) {
 			Byte b = memory.get(address+i);
 			if (b == null) {
 				buffer.put(i, (byte) 0);
@@ -56,9 +56,21 @@ public class Memory {
 				buffer.put(i, b);
 			}
 		}
-		return buffer.getLong(0);
+		return buffer.getInt(0);
 	}
 
+	/**
+	 * @param address	the address to store the instruction.
+	 * @param value		the instruction word to be stored at <code>address</code>.
+	 * @throws SegmentFaultException (but checks agaist TEXT_SEMENT)
+	 */
+	public void storeInstructionWord(long address, int value) throws SegmentFaultException {
+		boundsInstrCheck(address, WORD_SIZE);
+		buffer.putLong(0, value);
+		for (int i=0; i<WORD_SIZE; i++) {
+			memory.put(address+i, buffer.get(i+WORD_SIZE));
+		}
+	}
 
 	/**
 	 * @param address	the address from which to retrieve data.

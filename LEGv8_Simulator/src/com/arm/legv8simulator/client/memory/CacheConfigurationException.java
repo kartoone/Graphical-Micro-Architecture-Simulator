@@ -10,8 +10,8 @@ public class CacheConfigurationException extends Exception {
 	private static final long serialVersionUID = 2L;
 	
 	/**
-	 * @param size 		Total cache size in bytes (must be evenly divisible by blocksize)	
-	 * @param blocksize	Number of bytes in each block (must be multiple of 8)
+	 * @param size 		Total cache size in bytes 
+	 * @param blocksize	Number of bytes in each block 
 	 */
 	public CacheConfigurationException(CacheConfiguration config) {
 		super();
@@ -21,11 +21,12 @@ public class CacheConfigurationException extends Exception {
 	
 	@Override
 	public String getMessage() {
-		if (blocksize % 8 != 0)
-			return "Blocksize " + blocksize + " bytes is not a multiple of 8";
 		if (size % blocksize != 0)
 			return "Total cache size " + size + " bytes is not a multiple of " + blocksize + " bytes.";
-		return "check your code, this does not appear to be an exception";
+		if (!Cache.isPowerOfTwo(size / blocksize))
+			return "Number of entries " + (size/blocksize) + " is not a power of 2, leading to invalid index";
+
+		return ""; // this should never happen, it would only be if this exception is thrown on a VALID configuration
 	}
 	
 	private int size;

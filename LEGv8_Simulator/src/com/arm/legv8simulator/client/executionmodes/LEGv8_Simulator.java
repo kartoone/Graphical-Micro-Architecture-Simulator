@@ -14,6 +14,8 @@ import com.arm.legv8simulator.client.lexer.TextLine;
 import com.arm.legv8simulator.client.memory.CacheConfiguration;
 import com.arm.legv8simulator.client.memory.Cache;
 import com.arm.legv8simulator.client.memory.Memory;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /**
  * <code>LEGv8_Simulator</code> is the base class from which all simulator/execution modes are derived.
@@ -41,6 +43,25 @@ public abstract class LEGv8_Simulator {
 		populateBranchTable();
 		decodeInstructions();
 		memory = new Memory(cpuInstructions.size());
+
+		rootLogger = Logger.getLogger("");
+		if (compileErrors.size() == 0) {
+			assembleCode(); // load into memory if there were no compiler errors
+		} 
+	}
+
+	// store the instructions into the TEXT_SEGMENT of memory so that our I-CACHE can properly display the bits of the instruction
+	public void assembleCode() {
+		for (int instructionIndex=0; instructionIndex < cpuInstructions.size(); instructionIndex++) {
+			Instruction ins = cpuInstructions.get(instructionIndex); 
+			try {
+				int insword = ins.assemble(instructionIndex);
+				rootLogger.log(Level.SEVERE, instructionIndex + ": " + insword);
+				memory.storeInstructionWord(memory.TEXT_SEGMENT_OFFSET + instructionIndex * memory.WORD_SIZE, ins.assemble(instructionIndex));
+			} catch (Exception ex) {
+				rootLogger.log(Level.SEVERE, ex.toString());
+			}
+		}
 	}
 	
 	/**
@@ -214,7 +235,21 @@ public abstract class LEGv8_Simulator {
 	public String getMemLog() {
 		return cpu.getMemLog();
 	}
-	
+
+	/**
+	 * @return the "relevant" contents of the icache 
+	 */
+	public String getICacheLog() {
+		return cpu.getICacheLog();
+	}	
+
+	/**
+	 * @return the "relevant" contents of the dcache 
+	 */
+	public String getDCacheLog() {
+		return cpu.getDCacheLog();
+	}	
+
 	/**
 	 * @return	the line number in the text editor of the previously executed instruction
 	 */
@@ -230,4 +265,7 @@ public abstract class LEGv8_Simulator {
 	protected HashMap<String, Integer> branchTable;
 	protected ArrayList<Instruction> cpuInstructions;
 	protected CPU cpu;
+
+	protected Logger rootLogger;
+
 }

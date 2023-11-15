@@ -142,10 +142,10 @@ public class WebApp implements EntryPoint {
 		memLog.setWidth("255px");
 		memLog.setHeight("350px");
 		imemLog = new AceEditor();
-		imemLog.setWidth("255px");
+		imemLog.setWidth("225px");
 		imemLog.setHeight("350px");
 		dmemLog = new AceEditor();
-		dmemLog.setWidth("255px");
+		dmemLog.setWidth("225px");
 		dmemLog.setHeight("350px");
 		icache = new AceEditor();
 		icache.setWidth("350px");
@@ -762,41 +762,83 @@ public class WebApp implements EntryPoint {
 		memoryPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
 		memoryPanel.setVerticalAlignment(HasVerticalAlignment.ALIGN_TOP);
 		VerticalPanel subPanel = new VerticalPanel();
-		subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+		subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_LEFT);
 		subPanel.add(new Label("I-Memory Access Log"));
 		subPanel.add(imemLog);
 		memoryPanel.add(subPanel);
+		HorizontalPanel padding = new HorizontalPanel();
+		padding.setWidth("3px");
+		memoryPanel.add(padding);
 		subPanel = new VerticalPanel();
-		subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+		subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_LEFT);
 		subPanel.add(new Label("D-Memory Access Log"));
 		subPanel.add(dmemLog);
 		memoryPanel.add(subPanel);
+		padding = new HorizontalPanel();
+		padding.setWidth("3px");
+		memoryPanel.add(padding);
 		subPanel = new VerticalPanel();
-		subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+		subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_LEFT);
 		subPanel.add(new Label("Memory Contents"));
 		subPanel.add(memLog);
 		memoryPanel.add(subPanel);
-		HorizontalPanel padding = new HorizontalPanel();
-		padding.setWidth("10px");
+		padding = new HorizontalPanel();
+		padding.setWidth("3px");
 		memoryPanel.add(padding);
 		if (currentCacheMode == ICACHE_VISUAL || currentCacheMode == BOTHCACHE_VISUAL) {
-			subPanel = new VerticalPanel();
-			subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
-			subPanel.add(new Label("I-Cache Contents"));
-			subPanel.add(icache);
-			memoryPanel.add(subPanel);
-			padding = new HorizontalPanel();
-			padding.setWidth("10px");
-			memoryPanel.add(padding);
-
+			HorizontalPanel cacheConfigPanel = new HorizontalPanel();
+			icacheSize = new TextBox();
+			icacheBlocksize = new TextBox();
+			icacheStats = new Label("0 hits, 0 misses");
+			Label titleLabel = new Label("I-Cache:");
+			configureCachePanel(cacheConfigPanel, icacheSize, 128, icacheBlocksize, 4, titleLabel, icacheStats, icache);
 		}
 		if (currentCacheMode == DCACHE_VISUAL || currentCacheMode == BOTHCACHE_VISUAL) {
-			subPanel = new VerticalPanel();
-			subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
-			subPanel.add(new Label("D-Cache Contents"));
-			subPanel.add(dcache);
-			memoryPanel.add(subPanel);
+			HorizontalPanel cacheConfigPanel = new HorizontalPanel();
+			dcacheSize = new TextBox();
+			dcacheBlocksize = new TextBox();
+			dcacheStats = new Label("0 hits, 0 misses");
+			Label titleLabel = new Label("D-Cache:");
+			configureCachePanel(cacheConfigPanel, dcacheSize, 512, dcacheBlocksize, 8, titleLabel, dcacheStats, dcache);
 		}
+	}
+
+	private void configureCachePanel(HorizontalPanel cacheConfigPanel, TextBox sizeBox, int sizeDefault, TextBox blocksizeBox, int blocksizeDefault, Label titleLabel, Label statsLabel, AceEditor cacheContents) {
+		cacheConfigPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+		cacheConfigPanel.setVerticalAlignment(HasVerticalAlignment.ALIGN_MIDDLE);
+		cacheConfigPanel.add(new Label("Set total size: "));
+		sizeBox.getElement().setAttribute("type", "number");
+		sizeBox.getElement().setAttribute("placeholder", "bytes");
+		sizeBox.setValue(""+sizeDefault);
+		sizeBox.setWidth("40px");
+		cacheConfigPanel.add(sizeBox);
+		HorizontalPanel padding = new HorizontalPanel();
+		padding.setWidth("7px");
+		cacheConfigPanel.add(padding);
+		cacheConfigPanel.add(new Label("Set block size: "));
+		blocksizeBox.getElement().setAttribute("type", "number");
+		blocksizeBox.getElement().setAttribute("placeholder", "bytes");
+		blocksizeBox.setValue(""+blocksizeDefault);
+		blocksizeBox.setWidth("40px");
+		cacheConfigPanel.add(blocksizeBox);
+		HorizontalPanel cacheStatsPanel = new HorizontalPanel();
+		cacheStatsPanel.add(titleLabel);
+		padding = new HorizontalPanel();
+		padding.setWidth("7px");
+		cacheStatsPanel.add(padding);
+		cacheStatsPanel.add(statsLabel);
+		VerticalPanel subPanel = new VerticalPanel();
+		subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+		subPanel.add(cacheStatsPanel);
+		subPanel.add(cacheConfigPanel);
+		subPanel.add(cacheContents);
+		memoryPanel.add(subPanel);
+		padding = new HorizontalPanel();
+		padding.setWidth("3px");
+		memoryPanel.add(padding);
+
+		// TODO: setup the "replay" handler for replaying BOTH cache logs whenver is made a change to either config (simpler)
+		// WORKAROUND: just make sure you hit assemble again after making changes and then re-run program
 	}
 
 	// initialises the debug panel - contains the cpuLog
@@ -851,11 +893,17 @@ public class WebApp implements EntryPoint {
 	}
 
 	private CacheConfiguration createIcacheconfig() {
-		return null;
+		if (icacheSize != null)
+			return new CacheConfiguration(Integer.parseInt(icacheSize.getText()), Integer.parseInt(icacheBlocksize.getText()));
+		else
+			return null;
 	}
 	
 	private CacheConfiguration createDcacheconfig() {
-		return null;
+		if (dcacheSize != null)
+			return new CacheConfiguration(Integer.parseInt(dcacheSize.getText()), Integer.parseInt(dcacheBlocksize.getText()));
+		else
+			return null;
 	}
 	
 	// starts a new PipleineSimulator object
@@ -887,6 +935,8 @@ public class WebApp implements EntryPoint {
 		this.imemLog.setText(singleCycleSim.getIMemLog());
 		this.dmemLog.setText(singleCycleSim.getDMemLog());
 		this.memLog.setText(singleCycleSim.getMemLog());
+		this.icache.setText(singleCycleSim.getICacheLog());
+		this.dcache.setText(singleCycleSim.getDCacheLog());
 		editor.removeAllMarkers();
 		editor.addMarker(AceRange.create(singleCycleSim.getCurrentLineNumber(), 0, singleCycleSim.getCurrentLineNumber(), 
 				41), "ace_selection", AceMarkerType.FULL_LINE, false);
@@ -994,6 +1044,13 @@ public class WebApp implements EntryPoint {
 	private VerticalPanel debugPanel;
 	private VerticalPanel writingPanel;
 	private HorizontalPanel memoryPanel;
+
+	private Label icacheStats;
+	private Label dcacheStats;
+	private TextBox icacheSize;
+	private TextBox icacheBlocksize;
+	private TextBox dcacheSize;
+	private TextBox dcacheBlocksize;
 	
 	private Label execModesLab;
 	private Label cacheModesLab;

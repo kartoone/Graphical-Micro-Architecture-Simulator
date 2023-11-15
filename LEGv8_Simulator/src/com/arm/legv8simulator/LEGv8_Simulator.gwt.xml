@@ -8,6 +8,7 @@
 <module rename-to='legv8_simulator'>
   <!-- Inherit the core Web Toolkit stuff.                        -->
   <inherits name='com.google.gwt.user.User'/>
+  <inherits name="com.google.gwt.logging.Logging"/>
 
   <!-- Inherit the default GWT style sheet.  You can change       -->
   <!-- the theme of your GWT application by uncommenting          -->
@@ -23,6 +24,7 @@
 
   <!-- Specify the app entry point class.                         -->
   <entry-point class='com.arm.legv8simulator.client.WebApp'/>
+
 
   <!-- Specify the paths for translatable code                    -->
   <source path='client'/>
