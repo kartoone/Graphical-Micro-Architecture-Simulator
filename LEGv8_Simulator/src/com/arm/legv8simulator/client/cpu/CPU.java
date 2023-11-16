@@ -334,6 +334,8 @@ public class CPU {
 		int[] args = ins.getArgs();
 		branchTaken = false; // rather ugly but... set to false by default as most instructions are not branches. 
 
+		mriCurrent = false;
+		mrdCurrent = false;
 		_checkICache(ins.getMnemonic().toString(), memory);
 		//if a branch instruction is executed and the branch is taken, will be set to true in that instruction method 
 		switch (ins.getMnemonic()) {
@@ -486,6 +488,7 @@ public class CPU {
 			break;
 		default : {}
 		}
+		updateMemoryContents(memory);
 	}
 
 	private void ADD(int destReg, int op1Reg, int op2Reg) {
@@ -958,34 +961,61 @@ public class CPU {
 		String hex = Long.toHexString(addr);
 		String status = icacheMem != null ? "H or M" : "--";
 		imemLog.append(opcode + ":\t0x" + hex + "\t" + status + "\n");
+		mriAddr = addr;
+		mriCurrent = true;
+	}
 
+	private void _checkDCache(String opcode, int baseAddressReg, int offset, Memory memory) {
+		Long addr = registerFile[baseAddressReg] + offset;
+		String hex = Long.toHexString(addr);
+		String status = dcacheMem != null ? "H or M" : "--";
+		dmemLog.append(opcode + ":\t0x" + hex + "\t" + status + "\n");
+		mrdAddr = addr;
+		mrdCurrent = true;
+	}
+
+
+	// updates the memory contents dislay (should be called after every instruction by execute)
+	// mriAddr is a global that keeps track of the memory addr of the most recently accessed instruction
+    // mrdAddr is a global that keeps track of the memory addr of the most recently accessed data memory location
+    // mriCurrent is a global that indicates whether instruction memory has just been read in the current instruction (this should be always true, but might be set to false with a stall or possibly something else I can't think of right now)
+    // mrdCurrent is a global that indicates whether data memory has just been read by the current instruction
+	private void updateMemoryContents(Memory memory) {
 		// reset the memory contents "log" and fetch the surrounding memory
 		memLog.setLength(0); // more responsible and better performance than allocating new StringBuilder...
-		memLog.append("INST ADDR ***CURRENT INSTR***\n");
 
-		Long addrTWOPRIOR = addr - 8;
-		Long addrONEPRIOR = addr - 4;
-		Long addrONEPLUS = addr + 4;
-		Long addrTWOPLUS = addr + 8;
+		// first display instruction related locations at the top
+		memLog.append("INST ADDR ***CURRENT***\n");
+		for (int i = -4; i <= -1; i++) {
+			if (mriAddr+4*i >= memory.TEXT_SEGMENT_OFFSET) {
+				memLogAppend(mriAddr+4*i, memory, false);	
+			}
+		}
+		memLogAppend(mriAddr, memory, mriCurrent);	
+		for (int i = 1; i<= 4; i++) {
+			memLogAppend(mriAddr+4*i, memory, false);	
+		}
 
-		if (addrTWOPRIOR >= memory.TEXT_SEGMENT_OFFSET) {
-			memLogAppend(addrTWOPRIOR, memory, false);	
+		// now display data related locations at the bottom
+		// data access can be on any address, but we want to always grab from the nearest doubleword aligned address
+		memLog.append("\nDATA ADDR \t***CURRENT***\n");
+
+		long aligned = (mrdAddr / 8) * 8;
+		for (int i = -4; i <= -1; i++) {
+			if (aligned+8*i >= memory.DYNAMIC_DATA_SEGMENT_OFFSET) {
+				memLogDAppend(aligned+8*i, memory, false);	
+			}
 		}
-		if (addrONEPRIOR >= memory.TEXT_SEGMENT_OFFSET) {
-			memLogAppend(addrONEPRIOR, memory, false);	
+		memLogDAppend(aligned, memory, mrdCurrent);	
+		for (int i = 1; i<= 4; i++) {
+			if (aligned+8*i <= memory.STACK_BASE) {
+				memLogDAppend(aligned+8*i, memory, false);	
+			}
 		}
-		
-		// we aren't going to have giant programs in this simulator so need to bounds check the PLUS ones, but particularly when our program first starts the PRIOR addresses might be out of bounds
-		memLogAppend(addr, memory, true);	
-		memLogAppend(addrONEPLUS, memory, false);	
-		memLogAppend(addrTWOPLUS, memory, false);	
 	}
-		
-	private void memLogAppend(Long addr, Memory memory, boolean iscurrent) {
-		if (iscurrent) {
-			memLog.append("***");
-		}
 
+	private void memLogAppend(Long addr, Memory memory, boolean iscurrent) {
+		memLog.append(iscurrent ? "***" : "");
 		try {
 			StringBuilder sb = new StringBuilder(Long.toHexString(memory.loadInstructionWord(addr)));
 			String reversed = sb.reverse().toString();
@@ -993,38 +1023,44 @@ public class CPU {
 			String finalSubstr = new StringBuilder(reversedSubstr).reverse().toString();
 			memLog.append("0x" + Long.toHexString(addr) + "\t0x" + finalSubstr);
 		} catch (Exception ex) {
-			memLog.append("MEM FAULT"); // should never happen but oh well
+			memLog.append("MEM FAULT"); // should never happen but stick it into the memory log just in case it does happen
 		}
-
-		if (iscurrent) {
-			memLog.append("***\n");
-		} else {
-			memLog.append("\n");
-		}
+		memLog.append(iscurrent ? "***\n" : "\n");
 	}	
 
-	private void _checkDCache(String opcode, int baseAddressReg, int offset, Memory memory) {
-		Long addr = registerFile[baseAddressReg] + offset;
-		String hex = Long.toHexString(addr);
-		String status = dcacheMem != null ? "H or M" : "--";
-		dmemLog.append(opcode + ":\t0x" + hex + "\t" + status + "\n");
-	}
+	private void memLogDAppend(Long addr, Memory memory, boolean iscurrent) {
+		memLog.append(iscurrent ? "***" : "");
+		try {
+			String finalSubstr = Long.toHexString(memory.loadDoubleword(addr));
+			memLog.append("0x" + Long.toHexString(addr) + (iscurrent?"":"\t") + "\t0x" + finalSubstr);
+		} catch (Exception ex) {
+			memLog.append("MEM FAULT"); // should never happen but oh well
+		}
+		memLog.append(iscurrent ? "***\n" : "\n");
+	}	
 
 	private boolean branchTaken = false;
 	private boolean STXRSucceed = false;
 	private StringBuilder cpuLog = new StringBuilder("");
-	private StringBuilder imemLog = new StringBuilder("");
-	private StringBuilder dmemLog = new StringBuilder("");
-	private StringBuilder memLog = new StringBuilder("");
-	private StringBuilder icacheLog = new StringBuilder("");
-	private StringBuilder dcacheLog = new StringBuilder("");
+
 	private long[] registerFile;
-	private Cache icacheMem;
-	private Cache dcacheMem;
 	private long taggedAddress;
 	private int instructionIndex;
 	private boolean Nflag;
 	private boolean Zflag;
 	private boolean Cflag;
 	private boolean Vflag;
+
+	// --CACHE RELATED ADDITIONS THIS FEELS LIKE A LOT BUT THERE IS A REASON WHY IT WASN'T AVAILABLE FROM THE BEGINNING, IT'S QUITE COMPLEX! --
+	private StringBuilder imemLog = new StringBuilder("");
+	private StringBuilder dmemLog = new StringBuilder("");
+	private StringBuilder memLog = new StringBuilder("");
+	private StringBuilder icacheLog = new StringBuilder("");
+	private StringBuilder dcacheLog = new StringBuilder("");
+	private Cache icacheMem;
+	private Cache dcacheMem;
+	private long mriAddr = Memory.TEXT_SEGMENT_OFFSET; 			// keeps track of the memory addr of the most recently accessed instruction
+	private long mrdAddr = Memory.DYNAMIC_DATA_SEGMENT_OFFSET;  // keeps track of the most recently accessed data memory location
+    private boolean mriCurrent; // indicates whether instruction memory has just been read in the current instruction (this should be always true, but might be set to false with a stall or possibly something else I can't think of right now)
+    private boolean mrdCurrent; // indicates whether data memory has just been read by the current instruction
 }

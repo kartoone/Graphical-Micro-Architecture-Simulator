@@ -131,7 +131,6 @@ public class WebApp implements EntryPoint {
 		editor = new AceEditor();
 		editor.setWidth("600px"); // dummy values, size adjusted later based on window size
 		editor.setHeight("700px"); 
-		
 		// create cpuLog
 		cpuLog = new AceEditor();
 		cpuLog.setWidth("600px");
@@ -166,6 +165,27 @@ public class WebApp implements EntryPoint {
 		editor.setTabSize(10);
 		editor.focus();
 		editor.setShowGutter(true);
+
+		// example program to demonstrate D-cache access
+		// make sure you understand why the offsets of 0, 12, 22, 31 ... (answer: because of how much data is being written we've got to start writing at the correct portion of the doubleword if we want it to display a nice 1, 2, 3, 4, 5 pattern!)
+		editor.setText("ADDI	x1, xzr, 1\n"+
+	"LSL	x1, x1, 28\n"+
+	"LDUR	x2, [x1, 0]\n"+
+	"LDURSW	x2, [x1, 8]\n"+
+	"LDURH	x2, [x1, 16]\n"+
+	"LDURB	x2, [x1, 24]\n"+
+	"LDXR	x2, [x1, 32]\n"+
+	"ADDI	x2, x2, 1\n"+
+	"STUR	x2, [x1, 0]\n"+
+	"ADDI	x2, x2, 1\n"+
+	"STURW	x2, [x1, 12]\n"+
+	"ADDI	x2, x2, 1\n"+
+	"STURH	x2, [x1, 22]\n"+
+	"ADDI	x2, x2, 1\n"+
+	"STURB	x2, [x1, 31]\n"+
+	"ADDI	x2, x2, 1\n"+
+	"ADDI   x1, x1, 32\n"+
+	"STXR	x2, x3, [x1, 0]");
 
 		// start the cpuLog and set its theme and mode
 		cpuLog.startEditor();
