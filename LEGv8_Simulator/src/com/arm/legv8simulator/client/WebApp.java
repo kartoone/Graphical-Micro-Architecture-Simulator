@@ -168,7 +168,7 @@ public class WebApp implements EntryPoint {
 
 		// example program to demonstrate D-cache access
 		// make sure you understand why the offsets of 0, 12, 22, 31 ... (answer: because of how much data is being written we've got to start writing at the correct portion of the doubleword if we want it to display a nice 1, 2, 3, 4, 5 pattern!)
-		editor.setText("ADDI	x1, xzr, 1\n"+
+		editor.setText("START:\nADDI	x1, xzr, 1\n"+
 	"LSL	x1, x1, 28\n"+
 	"LDUR	x2, [x1, 0]\n"+
 	"LDURSW	x2, [x1, 8]\n"+
@@ -185,7 +185,18 @@ public class WebApp implements EntryPoint {
 	"STURB	x2, [x1, 31]\n"+
 	"ADDI	x2, x2, 1\n"+
 	"ADDI   x1, x1, 32\n"+
-	"STXR	x2, x3, [x1, 0]");
+	"STXR	x2, x3, [x1, 0]\n"+
+	"// force cache conflict assuming 512 byte D-cache\n"+
+	"ADDI	x1, xzr, 1\n"+
+	"LSL	x1, x1, 28\n"+
+	"ADDI	x1, x1, 512\n"+
+	"LDUR	x2, [x1, 0]\n"+
+	"LDURSW	x2, [x1, 8]\n"+
+	"LDURH	x2, [x1, 16]\n"+
+	"LDURB	x2, [x1, 24]\n"+
+"// loop back to beginning\n"+
+	"CBZ	xzr, START\n");
+
 
 		// start the cpuLog and set its theme and mode
 		cpuLog.startEditor();
@@ -811,7 +822,7 @@ public class WebApp implements EntryPoint {
 			icacheBlocksize = new TextBox();
 			icacheStats = new Label("0 hits, 0 misses");
 			Label titleLabel = new Label("I-Cache:");
-			configureCachePanel(cacheConfigPanel, icacheSize, 128, icacheBlocksize, 4, titleLabel, icacheStats, icache);
+			configureCachePanel(cacheConfigPanel, icacheSize, 64, icacheBlocksize, 4, titleLabel, icacheStats, icache);
 		}
 		if (currentCacheMode == DCACHE_VISUAL || currentCacheMode == BOTHCACHE_VISUAL) {
 			HorizontalPanel cacheConfigPanel = new HorizontalPanel();

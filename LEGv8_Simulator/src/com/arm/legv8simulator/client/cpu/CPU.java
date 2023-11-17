@@ -981,8 +981,11 @@ public class CPU {
 	private void _checkDCacheW(String opcode, int numbytes, long newval, int baseAddressReg, int offset, Memory memory) throws SegmentFaultException {
 		Long addr = registerFile[baseAddressReg] + offset;
 		String hex = Long.toHexString(addr);
-		boolean hit = dcacheMem.checkCacheW(addr, numbytes, newval, memory); // this does a LOT ... returns true (hit) or false (miss) but also updates all the cache stats and services the miss (transfers block from lower level) ... web app can then update stats panel correctly
-		String status = dcacheMem != null ? (hit?"Hit":"Miss") : "--";
+		String status = "--";
+		if (dcacheMem!=null) {
+			boolean hit = dcacheMem.checkCacheW(addr, numbytes, newval, memory); // this does a LOT ... returns true (hit) or false (miss) but also updates all the cache stats and services the miss (transfers block from lower level) ... web app can then update stats panel correctly
+			status = hit?"Hit":"Miss";
+		}
 		dmemLog.append(opcode + ":\t0x" + hex + "\t" + status + "\n");
 		mrdAddr = addr;
 		mrdCurrent = true;

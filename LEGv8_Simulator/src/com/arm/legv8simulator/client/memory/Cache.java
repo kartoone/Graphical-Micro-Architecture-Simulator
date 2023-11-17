@@ -163,8 +163,8 @@ public class Cache {
 			hits++;
 		} else {
 			misses++;
-			serviceMiss(address, indices, memory); // this will fetch entire block(s) for those requests that span multiple cache entries
 		}
+		serviceMiss(address, indices, memory); // this will make sure the cache contents properly match the memory contents which have been updated as part of the write-through
 		return hit;
 	}
 
@@ -188,22 +188,18 @@ public class Cache {
 	 * @param memory
 	 */
 	protected void serviceMiss(long address, int[] indices, Memory memory) {
-		rootLogger.log(Level.SEVERE, "service miss: " + toHex(address, 16));
 		long tagAddr = address >> (64 - tagsizebits);
 		tagAddr = tagAddr << (64 - tagsizebits); // now we just need to add the index 
-		rootLogger.log(Level.SEVERE, "tagaddr: " + toHex(tagAddr, 16));
 		for (int i: indices) {
 			cache[i] = new CacheEntry(calculateTag(address), true, blocksize);
 			cache[i].valid = true;
 			// now retrieve the blocks from memory
 			long indexAddr = tagAddr + (i << blocksizebits);
 			cache[i].setBlock(memory.retrieveBlock(indexAddr, blocksize)); 			
-			rootLogger.log(Level.SEVERE, "index: " + i + " " + cache[i].toString());
 		}
 	}
 
 	protected int[] calculateIndices(long address, int numbytes) {
-		rootLogger.log(Level.SEVERE, "calculateIndices: " + toHex(address, 16) + ", " + numbytes + ", " + tagsizebits + ", " + (64-tagsizebits-blocksizebits) + ", " + blocksizebits);
 		ArrayList<Integer> indices = new ArrayList<>();
 
 		while (numbytes > 0) {
@@ -228,13 +224,11 @@ public class Cache {
 		for (int i=0; i<indices.size(); i++) {
 			placeholder[i] = indices.get(i);
 		}
-		rootLogger.log(Level.SEVERE, "calculateIndices: indices: " + java.util.Arrays.toString(placeholder));
 		return placeholder;
 	}
 
 	protected long calculateTag(long address) {
 		long tag = address >> (64-tagsizebits);
-		rootLogger.log(Level.SEVERE, "calculateTag: address: " + toHex(address, 16) + ", " + toHex(tag, 16));
 		return tag; // since the tag is on the far left of the address, simply shift it to the right correct number of times and we have the tag!
 	}
 
