@@ -41,9 +41,9 @@ public class Cache {
 		byte[] block; // these are the individual bytes within the block ... also, because the blocksize can never change while we are running it's fine to use an array instead of a more dynamic data structure
 
 		// cache entry constructor is only called during initial setup of cache (so no data ready for the block yet)
-		CacheEntry(long tag, int blocksize) {
-			tag = 0L;
-			valid = false;
+		CacheEntry(long tag, boolean valid, int blocksize) {
+			this.tag = tag;
+			this.valid = valid;
 			block = new byte[blocksize];
 		}
 
@@ -103,7 +103,7 @@ public class Cache {
 		cache = new CacheEntry[entries];
 		// now create the actual cacheentry (note that this will initialize all of the entries with their invalid "bit" set to false)
 		for (int i = 0; i<cache.length; i++) {
-			cache[i] = new CacheEntry(0L, blocksize);
+			cache[i] = new CacheEntry(0L, false, blocksize);
 		}
 	}
 
@@ -193,7 +193,7 @@ public class Cache {
 		tagAddr = tagAddr << (64 - tagsizebits); // now we just need to add the index 
 		rootLogger.log(Level.SEVERE, "tagaddr: " + toHex(tagAddr, 16));
 		for (int i: indices) {
-			cache[i] = new CacheEntry(calculateTag(address), blocksize);
+			cache[i] = new CacheEntry(calculateTag(address), true, blocksize);
 			cache[i].valid = true;
 			// now retrieve the blocks from memory
 			long indexAddr = tagAddr + (i << blocksizebits);
@@ -203,7 +203,7 @@ public class Cache {
 	}
 
 	protected int[] calculateIndices(long address, int numbytes) {
-		rootLogger.log(Level.SEVERE, "calculateIndices: " + toHex(address, 16) + ", " + numbytes);
+		rootLogger.log(Level.SEVERE, "calculateIndices: " + toHex(address, 16) + ", " + numbytes + ", " + tagsizebits + ", " + (64-tagsizebits-blocksizebits) + ", " + blocksizebits);
 		ArrayList<Integer> indices = new ArrayList<>();
 
 		while (numbytes > 0) {
@@ -211,11 +211,13 @@ public class Cache {
 			long step1 = address >> blocksizebits; // shift the blocksize bits out of the way
 
 			// now shift tagsizebits to the left to get rid of the tag
-			long step2 = step1 << tagsizebits + blocksizebits;
+			long step2 = step1 << (tagsizebits + blocksizebits);
 
 			// finally return the index shifted back correct number of places which is the blocksize + the tagsize
 			// safely cast to int b/c valid CacheConfiguration only takes in ints when specifying size and blocksize
-			indices.add((int) (step2 >> (tagsizebits + blocksizebits)));
+			long step3 = step2 >>> (tagsizebits + blocksizebits);
+		//	rootLogger.log(Level.SEVERE,"step2: " + toHex(step2,16) + ", step3: " + toHex(step3,16));
+			indices.add((int)step3);
 
 			// now see how many bytes we "consumed" with that index
 			long blockend = (step1 << blocksizebits) + blocksize;
@@ -231,7 +233,9 @@ public class Cache {
 	}
 
 	protected long calculateTag(long address) {
-		return address >> 64-tagsizebits; // since the tag is on the far left of the address, simply shift it to the right correct number of times and we have the tag!
+		long tag = address >> (64-tagsizebits);
+		rootLogger.log(Level.SEVERE, "calculateTag: address: " + toHex(address, 16) + ", " + toHex(tag, 16));
+		return tag; // since the tag is on the far left of the address, simply shift it to the right correct number of times and we have the tag!
 	}
 
 	protected static int log2(long num) {
@@ -255,33 +259,33 @@ public class Cache {
 
 	// for all of thse memory reads, we first figure out which CacheEntry(s) are involved
 	// if only one CacheEntry, then simply request the data from the CacheEntry
-	public long loadDoubleword(long address) {
-		return 0L;
-	}
+	// public long loadDoubleword(long address) {
+	// 	return 0L;
+	// }
 
-	public int loadSignedword(long address) {
-		return 0;
-	}
+	// public int loadSignedword(long address) {
+	// 	return 0;
+	// }
 
-	public int loadHalfword(long address) {
-		return 0;
-	}
+	// public int loadHalfword(long address) {
+	// 	return 0;
+	// }
 
-	public int loadByte(long address) {
-		return 0;
-	}
+	// public int loadByte(long address) {
+	// 	return 0;
+	// }
 
-	public void storeDoubleword(long address, long value) {
-	}
+	// public void storeDoubleword(long address, long value) {
+	// }
 
-	public void storeWord(long address, int value) {
-	}
+	// public void storeWord(long address, int value) {
+	// }
 
-	public void storeHalfword(long address, short value) {
-	}
+	// public void storeHalfword(long address, short value) {
+	// }
 
-	public void storeByte(long address, byte value) {
-	}
+	// public void storeByte(long address, byte value) {
+	// }
 
 	public String toString() {
 		String str = size + " bytes total with " + blocksize + " bytes per block\n";

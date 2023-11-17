@@ -46,6 +46,7 @@ public class Memory {
 	}
 	
 	public byte[] retrieveBlock(long address, int blocksize) {
+		rootLogger.log(Level.SEVERE, "retrieve block: " + Cache.toHex(address, 16) + ", " + blocksize);
 		byte bytes[] = new byte[blocksize];
 		for (int i = 0; i<blocksize; i++) {
 			Byte b = memory.get(address + i);
