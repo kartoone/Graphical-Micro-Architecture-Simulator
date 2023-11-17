@@ -1,6 +1,8 @@
 package com.arm.legv8simulator.client.memory;
 
 import java.util.HashMap;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /**
  * <code>Memory</code> is the class used to implement the virtual address space of a LEGv8 program.
@@ -30,7 +32,8 @@ public class Memory {
 	public static final int HALFWORD_SIZE = 2;
 	public static final int BYTE_SIZE = 1;
 	public static final int BITS_IN_BYTE = 8;
-	
+	protected Logger rootLogger;
+
 	/**
 	 * Memory constructor with a specified number of instructions.
 	 * @param numInstructions	the number of instructions in the LEGv8 program being compiled/executed.
@@ -39,6 +42,16 @@ public class Memory {
 		staticDataSegmentOffset = TEXT_SEGMENT_OFFSET + numInstructions * WORD_SIZE;
 		memory = new HashMap<Long, Byte>();
 		buffer = new ByteBuffer(DOUBLEWORD_SIZE);
+		rootLogger = Logger.getLogger("");
+	}
+	
+	public byte[] retrieveBlock(long address, int blocksize) {
+		byte bytes[] = new byte[blocksize];
+		for (int i = 0; i<blocksize; i++) {
+			Byte b = memory.get(address + i);
+			bytes[i] = (byte) (b!= null ? b : 0);
+		}
+		return bytes;
 	}
 
 	/**

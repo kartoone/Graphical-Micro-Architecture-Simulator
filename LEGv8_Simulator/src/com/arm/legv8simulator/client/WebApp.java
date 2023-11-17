@@ -848,7 +848,7 @@ public class WebApp implements EntryPoint {
 		cacheStatsPanel.add(padding);
 		cacheStatsPanel.add(statsLabel);
 		VerticalPanel subPanel = new VerticalPanel();
-		subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
+		subPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_LEFT);
 		subPanel.add(cacheStatsPanel);
 		subPanel.add(cacheConfigPanel);
 		subPanel.add(cacheContents);
@@ -961,6 +961,10 @@ public class WebApp implements EntryPoint {
 		editor.addMarker(AceRange.create(singleCycleSim.getCurrentLineNumber(), 0, singleCycleSim.getCurrentLineNumber(), 
 				41), "ace_selection", AceMarkerType.FULL_LINE, false);
 		cpuLog.setText(singleCycleSim.getCpuLog());
+		if (icacheStats != null)
+			icacheStats.setText(singleCycleSim.getCacheStats(true));
+		if (dcacheStats != null)
+			dcacheStats.setText(singleCycleSim.getCacheStats(false));
 		updateRegisterLabels(singleCycleSim);
 		updateFlagLabels(singleCycleSim);
 		if (visual) {

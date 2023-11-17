@@ -121,7 +121,8 @@ public class CPU {
 	 */
 	public Error executeInstruction(ArrayList<Instruction> cpuInstructions, Memory memory) {
 		try {
-			execute(cpuInstructions.get(instructionIndex++), memory);
+			if (instructionIndex < cpuInstructions.size())
+				execute(cpuInstructions.get(instructionIndex++), memory);
 		} catch (SegmentFaultException sfe) {
 			return new Error(sfe.getMessage(), cpuInstructions.get(instructionIndex-1).getLineNumber());
 		} catch (PCAlignmentException pcae) {
@@ -188,14 +189,14 @@ public class CPU {
 	 * @return a string showing full list of memory accesses
 	 */
 	public String getICacheLog() {
-		return icacheLog.toString();
+		return icacheMem!= null ? icacheMem.toString() : "";
 	}
 
 	/**
 	 * @return a string showing full list of memory accesses
 	 */
 	public String getDCacheLog() {
-		return dcacheLog.toString();
+		return dcacheMem!= null ? dcacheMem.toString() : "";
 	}
 
 	/**
@@ -677,8 +678,7 @@ public class CPU {
 		if (destReg == XZR) {
 			cpuLog.append("Ignored attempted assignment to XZR. \n");
 		} else {
-			_checkDCache("LDUR", baseAddressReg, offset, memory); // NEED TO USE THE CACHE RETURNED VALUE INSTEAD OF READING FROM MEMORY 
-			registerFile[destReg] = memory.loadDoubleword(registerFile[baseAddressReg]+offset);
+			registerFile[destReg] = _checkDCache("LDUR", 8, baseAddressReg, offset, memory); 
 			cpuLog.append("LDUR \t X" + destReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
 		}
 	}
@@ -686,8 +686,7 @@ public class CPU {
 	private void STUR(int valReg, int baseAddressReg, int offset, Memory memory) 
 			throws SegmentFaultException, SPAlignmentException {
 		if (baseAddressReg == SP) checkSPAlignment();
-		_checkDCache("STUR", baseAddressReg, offset, memory); // NEED TO DECIDE ON WRITE-BACK OR WRITE-THROUGH POLICY
-		memory.storeDoubleword(registerFile[baseAddressReg]+offset, registerFile[valReg]);
+		_checkDCacheW("STUR", 8, registerFile[valReg], baseAddressReg, offset, memory); // NEED TO DECIDE ON WRITE-BACK OR WRITE-THROUGH POLICY
 		clearExclusiveAccessTag(registerFile[baseAddressReg]+offset, Memory.DOUBLEWORD_SIZE);
 		cpuLog.append("STUR \t X" + valReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
 	}
@@ -698,8 +697,7 @@ public class CPU {
 		if (destReg == XZR) {
 			cpuLog.append("Ignored attempted assignment to XZR. \n");
 		} else {
-			_checkDCache("LDURSW", baseAddressReg, offset, memory);
-			registerFile[destReg] = memory.loadSignedWord(registerFile[baseAddressReg]+offset);
+			registerFile[destReg] = _checkDCache("LDURSW", 4, baseAddressReg, offset, memory);
 			cpuLog.append("LDURSW \t X" + destReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
 		}
 	}
@@ -707,8 +705,7 @@ public class CPU {
 	private void STURW(int valReg, int baseAddressReg, int offset, Memory memory) 
 			throws SegmentFaultException, SPAlignmentException {
 		if (baseAddressReg == SP) checkSPAlignment();
-		_checkDCache("STURW", baseAddressReg, offset, memory); 
-		memory.storeWord(registerFile[baseAddressReg]+offset, registerFile[valReg]);
+		_checkDCacheW("STURW", 4, registerFile[valReg], baseAddressReg, offset, memory); 
 		clearExclusiveAccessTag(registerFile[baseAddressReg]+offset, Memory.WORD_SIZE);
 		cpuLog.append("STURW \t X" + valReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
 	}
@@ -719,8 +716,7 @@ public class CPU {
 		if (destReg == XZR) {
 			cpuLog.append("Ignored attempted assignment to XZR. \n");
 		} else {
-			_checkDCache("LDURH", baseAddressReg, offset, memory);
-			registerFile[destReg] = memory.loadHalfword(registerFile[baseAddressReg]+offset); // fixed bug ... was using destReg as the base register!
+			registerFile[destReg] = _checkDCache("LDURH", 2, baseAddressReg, offset, memory);
 			cpuLog.append("LDURH \t X" + destReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
 		}
 	}
@@ -728,8 +724,7 @@ public class CPU {
 	private void STURH(int valReg, int baseAddressReg, int offset, Memory memory) 
 			throws SegmentFaultException, SPAlignmentException {
 		if (baseAddressReg == SP) checkSPAlignment();
-		_checkDCache("STURH", baseAddressReg, offset, memory); 
-		memory.storeHalfword(registerFile[baseAddressReg]+offset, registerFile[valReg]);
+		_checkDCacheW("STURH", 2, registerFile[valReg], baseAddressReg, offset, memory); 
 		clearExclusiveAccessTag(registerFile[baseAddressReg]+offset, Memory.HALFWORD_SIZE);
 		cpuLog.append("STURH \t X" + valReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
 	}
@@ -740,8 +735,7 @@ public class CPU {
 		if (destReg == XZR) {
 			cpuLog.append("Ignored attempted assignment to XZR. \n");
 		} else {
-			_checkDCache("LDURB", baseAddressReg, offset, memory);
-			registerFile[destReg] = memory.loadByte(registerFile[baseAddressReg]+offset);
+			registerFile[destReg] = _checkDCache("LDURB", 1, baseAddressReg, offset, memory);
 			cpuLog.append("LDURB \t X" + destReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
 		}
 	}
@@ -749,8 +743,7 @@ public class CPU {
 	private void STURB(int valReg, int baseAddressReg, int offset, Memory memory) 
 			throws SegmentFaultException, SPAlignmentException {
 		if (baseAddressReg == SP) checkSPAlignment();
-		_checkDCache("STURB", baseAddressReg, offset, memory); 
-		memory.storeByte(registerFile[baseAddressReg]+offset, registerFile[valReg]);
+		_checkDCacheW("STURB", 1, registerFile[valReg], baseAddressReg, offset, memory); 
 		clearExclusiveAccessTag(registerFile[baseAddressReg]+offset, Memory.BYTE_SIZE);
 		cpuLog.append("STURB \t X" + valReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
 	}
@@ -762,8 +755,7 @@ public class CPU {
 		if (destReg == XZR) {
 			cpuLog.append("Ignored attempted assignment to XZR. \n");
 		} else {
-			_checkDCache("LDXR", baseAddressReg, offset, memory);
-			registerFile[destReg] = memory.loadDoubleword(address);
+			registerFile[destReg] = _checkDCache("LDXR", 8, baseAddressReg, offset, memory);
 			taggedAddress = address;
 			cpuLog.append("LDXR \t X" + destReg + ", [X" + baseAddressReg + ", #" + offset + "] \n");
 		}
@@ -774,8 +766,7 @@ public class CPU {
 		if (baseAddressReg == SP) checkSPAlignment();
 		long address = registerFile[baseAddressReg] + offset;
 		if (taggedAddress == address) {
-			_checkDCache("STXR", baseAddressReg, offset, memory); 
-			memory.storeDoubleword(address, registerFile[valReg]);
+			_checkDCacheW("STXR", 8, registerFile[valReg], baseAddressReg, offset, memory); // because our cache is "write-through" we give the cache the new value when we go to check the cache on a store
 			registerFile[outcomeReg] = 0;
 			taggedAddress = 0;
 			STXRSucceed = true;
@@ -956,31 +947,61 @@ public class CPU {
 	}
 
 	// note that this also updates the relevant memory contents
+	// note that we have already retrieved the "instruction" so there really is no reason to return anything here
+	// this is because the simulator uses a separate instruction list (rather than the assembled instructions in memory!)
 	private void _checkICache(String opcode, Memory memory) {
 		Long addr = getPC() - 4; // instructionindex has already been incremented by the time this is called, so getPC already returns PC + 4 ... the branch has NOT been taken though so we can safely subtract 4 to get the address of the instruction currently being executed
 		String hex = Long.toHexString(addr);
-		String status = icacheMem != null ? "H or M" : "--";
+		String status = "--";
+		if (icacheMem!=null) {
+			boolean hit = icacheMem.checkCache(addr, 4, memory); // hard-code 4 because ALL INSTRUCTIONS are 4 bytes ... returns true (hit) or false (miss) but also updates all the cache stats and services the miss (transfers block from lower level) ... web app can then update stats panel correctly
+			status = hit?"Hit":"Miss";
+		}
 		imemLog.append(opcode + ":\t0x" + hex + "\t" + status + "\n");
 		mriAddr = addr;
 		mriCurrent = true;
 	}
 
-	private void _checkDCache(String opcode, int baseAddressReg, int offset, Memory memory) {
+	// note that we actually return the data here because we aren't going to service the miss and then access it from main memory!
+	// plus, if there is no miss then we don't have to access main memory at all, just return directly from the cache
+	private long _checkDCache(String opcode, int numbytes, int baseAddressReg, int offset, Memory memory) throws SegmentFaultException {
 		Long addr = registerFile[baseAddressReg] + offset;
 		String hex = Long.toHexString(addr);
-		String status = dcacheMem != null ? "H or M" : "--";
+		String status = "--";
+		if (dcacheMem!=null) {
+			boolean hit = dcacheMem.checkCache(addr, numbytes, memory); // this does a LOT ... returns true (hit) or false (miss) but also updates all the cache stats and services the miss (transfers block from lower level) ... web app can then update stats panel correctly
+			status = hit?"Hit":"Miss";
+		}
+		dmemLog.append(opcode + ":\t0x" + hex + "\t" + status + "\n");
+		mrdAddr = addr;
+		mrdCurrent = true;
+		return memory.loadDoubleword(addr);
+	}
+
+	private void _checkDCacheW(String opcode, int numbytes, long newval, int baseAddressReg, int offset, Memory memory) throws SegmentFaultException {
+		Long addr = registerFile[baseAddressReg] + offset;
+		String hex = Long.toHexString(addr);
+		boolean hit = dcacheMem.checkCacheW(addr, numbytes, newval, memory); // this does a LOT ... returns true (hit) or false (miss) but also updates all the cache stats and services the miss (transfers block from lower level) ... web app can then update stats panel correctly
+		String status = dcacheMem != null ? (hit?"Hit":"Miss") : "--";
 		dmemLog.append(opcode + ":\t0x" + hex + "\t" + status + "\n");
 		mrdAddr = addr;
 		mrdCurrent = true;
 	}
 
+	public String getCacheStats(boolean is_instr) {
+		if (icacheMem == null && is_instr)
+			return "";
+		if (dcacheMem == null && !is_instr)
+			return "";
+		return is_instr ? "I-cache: " + icacheMem.getStatsStr() : "D-cache: " + dcacheMem.getStatsStr();
+	}
 
 	// updates the memory contents dislay (should be called after every instruction by execute)
 	// mriAddr is a global that keeps track of the memory addr of the most recently accessed instruction
     // mrdAddr is a global that keeps track of the memory addr of the most recently accessed data memory location
     // mriCurrent is a global that indicates whether instruction memory has just been read in the current instruction (this should be always true, but might be set to false with a stall or possibly something else I can't think of right now)
     // mrdCurrent is a global that indicates whether data memory has just been read by the current instruction
-	private void updateMemoryContents(Memory memory) {
+	private void updateMemoryContents(Memory memory) throws SegmentFaultException {
 		// reset the memory contents "log" and fetch the surrounding memory
 		memLog.setLength(0); // more responsible and better performance than allocating new StringBuilder...
 
@@ -1014,17 +1035,13 @@ public class CPU {
 		}
 	}
 
-	private void memLogAppend(Long addr, Memory memory, boolean iscurrent) {
+	private void memLogAppend(Long addr, Memory memory, boolean iscurrent) throws SegmentFaultException {
 		memLog.append(iscurrent ? "***" : "");
-		try {
-			StringBuilder sb = new StringBuilder(Long.toHexString(memory.loadInstructionWord(addr)));
-			String reversed = sb.reverse().toString();
-			String reversedSubstr = reversed.substring(0, Math.min(reversed.length(), 8));
-			String finalSubstr = new StringBuilder(reversedSubstr).reverse().toString();
-			memLog.append("0x" + Long.toHexString(addr) + "\t0x" + finalSubstr);
-		} catch (Exception ex) {
-			memLog.append("MEM FAULT"); // should never happen but stick it into the memory log just in case it does happen
-		}
+		StringBuilder sb = new StringBuilder(Long.toHexString(memory.loadInstructionWord(addr)));
+		String reversed = sb.reverse().toString();
+		String reversedSubstr = reversed.substring(0, Math.min(reversed.length(), 8));
+		String finalSubstr = new StringBuilder(reversedSubstr).reverse().toString();
+		memLog.append("0x" + Long.toHexString(addr) + "\t0x" + finalSubstr);
 		memLog.append(iscurrent ? "***\n" : "\n");
 	}	
 

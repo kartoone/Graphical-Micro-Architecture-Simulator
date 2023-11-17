@@ -56,8 +56,7 @@ public abstract class LEGv8_Simulator {
 			Instruction ins = cpuInstructions.get(instructionIndex); 
 			try {
 				int insword = ins.assemble(instructionIndex);
-				rootLogger.log(Level.SEVERE, instructionIndex + ": " + insword);
-				memory.storeInstructionWord(memory.TEXT_SEGMENT_OFFSET + instructionIndex * memory.WORD_SIZE, ins.assemble(instructionIndex));
+				memory.storeInstructionWord(memory.TEXT_SEGMENT_OFFSET + instructionIndex * memory.WORD_SIZE, insword);
 			} catch (Exception ex) {
 				rootLogger.log(Level.SEVERE, ex.toString());
 			}
@@ -235,6 +234,14 @@ public abstract class LEGv8_Simulator {
 	public String getMemLog() {
 		return cpu.getMemLog();
 	}
+
+	/**
+	 * @return the "relevant" contents of Memory 
+	 */
+	public String getCacheStats(boolean is_instr) {
+		return cpu.getCacheStats(is_instr);
+	}
+
 
 	/**
 	 * @return the "relevant" contents of the icache 

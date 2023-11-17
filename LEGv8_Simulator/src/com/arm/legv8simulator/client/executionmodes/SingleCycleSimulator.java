@@ -30,9 +30,11 @@ public class SingleCycleSimulator extends LEGv8_Simulator {
 		previousInstructionIndex = currentInstructionIndex;
 		currentInstructionIndex = cpu.getInstructionIndex();
 		previousInstruction = currentInstruction;
-		currentInstruction = cpuInstructions.get(cpu.getInstructionIndex());
-		currentLineNumber = cpuInstructions.get(cpu.getInstructionIndex()).getLineNumber();
-		runtimeError = cpu.executeInstruction(cpuInstructions, memory);
+		if (currentInstructionIndex < cpuInstructions.size()) {
+			currentInstruction = cpuInstructions.get(cpu.getInstructionIndex());
+			currentLineNumber = cpuInstructions.get(cpu.getInstructionIndex()).getLineNumber();
+			runtimeError = cpu.executeInstruction(cpuInstructions, memory);
+		}
 	}
 	
 	/**
