@@ -837,7 +837,7 @@ public class WebApp implements EntryPoint {
 	private void configureCachePanel(HorizontalPanel cacheConfigPanel, TextBox sizeBox, int sizeDefault, TextBox blocksizeBox, int blocksizeDefault, Label titleLabel, Label statsLabel, AceEditor cacheContents) {
 		cacheConfigPanel.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_CENTER);
 		cacheConfigPanel.setVerticalAlignment(HasVerticalAlignment.ALIGN_MIDDLE);
-		cacheConfigPanel.add(new Label("Set total size: "));
+		cacheConfigPanel.add(new Label("Cache size: "));
 		sizeBox.getElement().setAttribute("type", "number");
 		sizeBox.getElement().setAttribute("placeholder", "bytes");
 		sizeBox.setValue(""+sizeDefault);
@@ -846,7 +846,7 @@ public class WebApp implements EntryPoint {
 		HorizontalPanel padding = new HorizontalPanel();
 		padding.setWidth("7px");
 		cacheConfigPanel.add(padding);
-		cacheConfigPanel.add(new Label("Set block size: "));
+		cacheConfigPanel.add(new Label("Block size: "));
 		blocksizeBox.getElement().setAttribute("type", "number");
 		blocksizeBox.getElement().setAttribute("placeholder", "bytes");
 		blocksizeBox.setValue(""+blocksizeDefault);
